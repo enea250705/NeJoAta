@@ -145,17 +145,19 @@
   /* ---------- handshake ---------- */
   // GUEST krijon offer
   function guestCreateOffer(){
+    if(typeof RTCPeerConnection==="undefined"){ sigBusy(""); sigMsg("Ky shfletues s'e mbështet lidhjen (WebRTC). Provo Chrome ose Safari, dhe sigurohu që faqja është me HTTPS."); return; }
     sigBusy("Po krijoj kodin…");
-    var pc=newPC(); pendingGuestPC=pc;
+    var pc; try{ pc=newPC(); }catch(e){ sigMsg("S'u krijua dot lidhja. Provo sërish."); return; }
+    pendingGuestPC=pc;
     var dc=pc.createDataChannel("mesh");
     peersConn.host={pc:pc}; wireDC(dc,"host");
     pc.oniceconnectionstatechange=function(){ if(pc.iceConnectionState==="failed")sigErr(); };
     pc.createOffer().then(function(o){return pc.setLocalDescription(o);})
       .then(function(){return waitIce(pc);})
       .then(function(){
+        // Trego QR-në e guest-it. Skanimi i përgjigjes hapet më pas me butonin "Skano kodin e host-it →".
         showOut(packSignal({r:"offer",sdp:pc.localDescription.sdp}),
-          "Trego kodin te host-i","Hapi 1/2 · host-i e skanon këtë. Pastaj skano kodin që të kthen ai.");
-        armScan("Skano kodin e host-it", guestApplyAnswer);
+          "Trego kodin te host-i","Hapi 1/2 · host-i e skanon këtë kod. Pastaj shtyp butonin poshtë për të skanuar kodin që të kthen ai.");
       }).catch(sigErr);
   }
   function guestApplyAnswer(code){
@@ -245,7 +247,7 @@
   }
   function sigBusy(txt){ openSignal(); $("outWrap").hidden=true; $("scanWrap").hidden=true; $("busyWrap").hidden=false; $("busyTxt").textContent=txt||"Një moment…"; sigMsg(""); }
   function sigMsg(t){ var el=$("sigMsg"); if(el)el.textContent=t||""; }
-  function sigErr(){ sigMsg("Lidhja dështoi. Sigurohu që të dy jeni në të njëjtin Wi-Fi/hotspot dhe provo sërish."); }
+  function sigErr(){ var b=$("busyWrap"); if(b)b.hidden=true; sigMsg("Lidhja dështoi. Sigurohu që të dy jeni në të njëjtin Wi-Fi/hotspot dhe provo sërish."); }
 
   /* ---------- kalimet mes ekraneve ---------- */
   function show(view){ Object.keys(V).forEach(function(k){ V[k].hidden = (V[k]!==view); }); if(view!==V.signal)stopCamera(); }
