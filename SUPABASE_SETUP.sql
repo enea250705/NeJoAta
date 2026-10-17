@@ -88,10 +88,20 @@ create policy "rows_delete_anon" on public.list_rows for delete to anon, authent
 -- hiq politikat "..._delete_anon" dhe fshirjen bëje vetëm nga dashboard-i.
 
 -- 4) Realtime — që shtimi i emrave të përditësohet te të gjithë në çast
-alter publication supabase_realtime add table public.list_rows;
-alter publication supabase_realtime add table public.lists;
-alter publication supabase_realtime add table public.reports;
--- (Nëse një tabelë është shtuar tashmë, Supabase jep gabim të padëmshëm — shpërfille.)
+-- (Idempotent: shton tabelën vetëm nëse s'është shtuar. Një gabim këtu do ta anulonte GJITHË skriptin.)
+do $$
+declare t text;
+begin
+  foreach t in array array['list_rows','lists','reports'] loop
+    if not exists (select 1 from pg_publication_tables
+                   where pubname = 'supabase_realtime' and schemaname = 'public' and tablename = t) then
+      execute format('alter publication supabase_realtime add table public.%I', t);
+    end if;
+  end loop;
+end $$;
+
+-- Rifresko cache-in e skemës së API-së (që kolonat e reja të shihen menjëherë)
+notify pgrst, 'reload schema';
 
 -- ============================================================
 -- SIGURIA — lexoje:

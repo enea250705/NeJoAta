@@ -590,13 +590,21 @@
   function lsSet(a){ try{ localStorage.setItem(LKEY, JSON.stringify(a)); }catch(e){} }
 
   function listsAll(){
-    if(SERVER) return SB.from("lists").select("id,name,columns,created_at").order("created_at",{ascending:true}).then(function(r){ if(r.error)throw r.error; return r.data||[]; });
+    // listat lokale (që s'u ruajtën dot në server) shfaqen gjithmonë bashkë me ato të serverit
+    if(SERVER) return SB.from("lists").select("id,name,columns,created_at").order("created_at",{ascending:true}).then(function(r){ if(r.error)throw r.error; return (r.data||[]).concat(lsGet()); }).catch(function(){ return lsGet(); });
     return Promise.resolve(lsGet());
   }
   function listCreate(name, cols, photoIndex){
     var idx = Number(photoIndex); if(!isFinite(idx) || idx < 0) idx = null;
     if(SERVER) {
       return SB.from("lists").insert({name:name,columns:cols,photo_index:idx}).select().then(function(r){
+        // kolona photo_index mungon në server (42703 / PGRST204) → ruaje pa të, mos e humb listën
+        if(r && r.error && (r.error.code==="42703" || r.error.code==="PGRST204")){
+          console.warn("photo_index column missing on server; saving list without it");
+          return SB.from("lists").insert({name:name,columns:cols}).select();
+        }
+        return r;
+      }).then(function(r){
         if(r && r.error) throw r.error;
         return (r && r.data && r.data[0]) ? r.data[0] : null;
       }).catch(function(err){
@@ -609,36 +617,44 @@
     var l={id:"l"+Date.now(),name:name,columns:cols,photo_index:idx,rows:[]}; var a=lsGet(); a.push(l); lsSet(a); return Promise.resolve(l);
   }
   function listGet(id){
-    if(SERVER) return SB.from("lists").select("*").eq("id",id).single().then(function(r){ if(r.error)throw r.error; return r.data ? Object.assign({}, r.data, {photo_index: (r.data.photo_index !== undefined && r.data.photo_index !== null) ? Number(r.data.photo_index) : null}) : r.data; });
+    if(SERVER) {
+      return SB.from("lists").select("*").eq("id",id).single().then(function(r){
+        if(r && r.error) throw r.error;
+        return r && r.data ? Object.assign({}, r.data, {photo_index: (r.data.photo_index !== undefined && r.data.photo_index !== null) ? Number(r.data.photo_index) : null}) : r.data;
+      }).catch(function(){
+        var found = lsGet().filter(function(x){return x.id===id;})[0];
+        return found ? Object.assign({}, found, {photo_index: (found.photo_index !== undefined && found.photo_index !== null) ? Number(found.photo_index) : null}) : null;
+      });
+    }
     var found = lsGet().filter(function(x){return x.id===id;})[0]; return Promise.resolve(found ? Object.assign({}, found, {photo_index: (found.photo_index !== undefined && found.photo_index !== null) ? Number(found.photo_index) : null}) : found);
   }
   function listRows(id){
-    if(SERVER) return SB.from("list_rows").select("id,data,created_at").eq("list_id",id).order("created_at",{ascending:true}).then(function(r){ if(r.error)throw r.error; return r.data||[]; });
+    if(SERVER) {
+      return SB.from("list_rows").select("id,data,created_at").eq("list_id",id).order("created_at",{ascending:true}).then(function(r){ if(r.error)throw r.error; return r.data||[]; }).catch(function(){
+        var l=lsGet().filter(function(x){return x.id===id;})[0];
+        return ((l&&l.rows)||[]).map(function(rw,i){return {id:"i"+i,data:rw};});
+      });
+    }
     var l=lsGet().filter(function(x){return x.id===id;})[0]; return Promise.resolve(((l&&l.rows)||[]).map(function(rw,i){return {id:"i"+i,data:rw};}));
   }
+  function isLocalId(id){ return /^l\d+$/.test(String(id)); }
   function rowAdd(listId, dataArr){
-    if(SERVER) return SB.from("list_rows").insert({list_id:listId,data:dataArr}).then(function(r){ if(r.error)throw r.error; });
+    if(SERVER && !isLocalId(listId)) return SB.from("list_rows").insert({list_id:listId,data:dataArr}).then(function(r){ if(r.error)throw r.error; });
     var a=lsGet(); a.forEach(function(l){ if(l.id===listId){ l.rows=l.rows||[]; l.rows.push(dataArr); } }); lsSet(a); return Promise.resolve();
   }
   function rowDel(listId, rowId){
-    if(SERVER) return SB.from("list_rows").delete().eq("id",rowId).then(function(r){ if(r.error)throw r.error; });
+    if(SERVER && !isLocalId(listId)) return SB.from("list_rows").delete().eq("id",rowId).then(function(r){ if(r.error)throw r.error; });
     var a=lsGet(); a.forEach(function(l){ if(l.id===listId){ var idx=parseInt(rowId.slice(1),10); if(l.rows&&idx>=0)l.rows.splice(idx,1); } }); lsSet(a); return Promise.resolve();
   }
   function listDel(id){
-    if(SERVER) return SB.from("lists").delete().eq("id",id).then(function(r){ if(r.error)throw r.error; });
+    if(SERVER && !isLocalId(id)) return SB.from("lists").delete().eq("id",id).then(function(r){ if(r.error)throw r.error; });
     lsSet(lsGet().filter(function(x){return x.id!==id;})); return Promise.resolve();
   }
   function migrateLocalListsToServer(){
+    // Provon çdo herë që hapet app-i; një listë hiqet nga lokali vetëm pasi ruhet me sukses në server.
     if(!SERVER) return Promise.resolve();
-    try{
-      var done = localStorage.getItem("nja_lists_migrated_to_server");
-      if(done === "1") return Promise.resolve();
-    }catch(e){}
     var localLists = lsGet();
-    if(!localLists.length) {
-      try{ localStorage.setItem("nja_lists_migrated_to_server","1"); }catch(e){}
-      return Promise.resolve();
-    }
+    if(!localLists.length) return Promise.resolve();
     var seq = Promise.resolve();
     localLists.forEach(function(list){
       seq = seq.then(function(){
@@ -656,15 +672,12 @@
             while(data.length < cols.length) data.push("");
             return SB.from("list_rows").insert({list_id: created.id, data:data});
           }));
-        });
+        }).then(function(){
+          lsSet(lsGet().filter(function(x){ return x.id !== list.id; }));
+        }).catch(function(err){ console.warn("List migration failed, kept locally:", err); });
       });
     });
-    return seq.then(function(){
-      try{ localStorage.setItem("nja_lists_migrated_to_server","1"); }catch(e){}
-      try{ localStorage.removeItem(LKEY); }catch(e){}
-    }).catch(function(){
-      try{ localStorage.setItem("nja_lists_migrated_to_server","1"); }catch(e){}
-    });
+    return seq;
   }
 
   // Realtime (vetëm në modalitet server)
