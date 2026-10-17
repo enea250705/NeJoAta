@@ -1,9 +1,12 @@
 /* ============================================================
    NeJoAta — bisedë lokale anonime pa internet (WebRTC mbi Wi-Fi lokal)
-   Topologjia: YLL. Një "host" është qendra; të tjerët ("bashkohu") lidhen
-   vetëm me host-in, i cili ua përcjell mesazhet njëri-tjetrit.
-   Sinjalizimi bëhet DORAZI me kod QR (ose tekst) — pa server fare.
-   iceServers: [] => vetëm kandidatë lokalë => punon pa internet, brenda Wi-Fi-t.
+   Topologjia: YLL. Një "host" është qendra; të tjerët lidhen vetëm me host-in,
+   i cili ua përcjell mesazhet. Sinjalizim DORAZI me QR (ose tekst) — pa server.
+   iceServers: [] => vetëm kandidatë lokalë => punon pa internet brenda Wi-Fi-t.
+
+   Rregull i artë i gjendjes: HYN NË BISEDË VETËM kur një kanal të dhënash HAPET
+   vërtet (ose host-i zgjedh shprehimisht "pres pjesëtarë"). Asnjë skanim i
+   dështuar dhe asnjë "mbrapa" nuk të fut në bisedë.
    ============================================================ */
 (function () {
   "use strict";
@@ -11,29 +14,26 @@
   /* ---------- identitet i përkohshëm ---------- */
   var ADJ = ["heshtur","shpejtë","verdhë","veri","qetë","hapur","gri","kthjellët","larg","afër","ulët","ndritshëm","bli","gur","pishë","hekur","muzg","ndezur","kaltër","fushë"];
   var NOUN = ["qift","lumë","gur","fier","krie","prush","flladi","fluturë","kallam","gardalinë","rrap","bli","zog","dunë","baticë","luginë","pulëbardhë","strall","mështeknë","skifter"];
-  function randHandle() {
-    return ADJ[(Math.random()*ADJ.length)|0] + "-" + NOUN[(Math.random()*NOUN.length)|0] + "-" + (10+(Math.random()*90|0));
-  }
-  var me = { handle: randHandle(), id: Math.random().toString(36).slice(2) + Date.now().toString(36) };
+  function randHandle(){ return ADJ[(Math.random()*ADJ.length)|0]+"-"+NOUN[(Math.random()*NOUN.length)|0]+"-"+(10+(Math.random()*90|0)); }
+  var me = { handle: randHandle(), id: Math.random().toString(36).slice(2)+Date.now().toString(36) };
 
   /* ---------- gjendja ---------- */
-  var role = null;              // "host" | "guest"
-  var peersConn = {};           // host: id -> {pc, dc, handle}; guest: {host:{pc,dc}}
-  var roster = {};              // id -> handle (për numrin e pranishëm)
-  var seen = {};
-  var lastSender = null;
-  var pendingPC = null;         // lidhja gjatë handshake-ut
-  var camStream = null, scanRAF = null;
+  var role=null;                 // "host" | "guest"
+  var peersConn={};              // host: peerId -> {pc,dc,handle}; guest: {host:{pc,dc}}
+  var roster={};                 // id -> handle
+  var seen={}, lastSender=null;
+  var pendingGuestPC=null;       // lidhja e guest-it gjatë handshake-ut
+  var camStream=null, scanRAF=null, scanCb=null;
+  var inChat=false;
 
-  /* ---------- elementë ---------- */
-  var $ = function (id) { return document.getElementById(id); };
-  var gate=$("gate"), roleView=$("roleView"), signalView=$("signalView"), app=$("app"), guide=$("guide");
+  var $=function(id){return document.getElementById(id);};
+  var V={ gate:$("gate"), role:$("roleView"), hostWait:$("hostWait"), signal:$("signalView"), app:$("app"), guide:$("guide") };
   var scroll=$("scroll"), input=$("input"), composer=$("composer"), sendBtn=$("sendBtn");
   var roomLabel=$("roomLabel"), peerCount=$("peerCount"), statusDot=$("statusDot");
 
-  /* ---------- ndihmës UI ---------- */
-  function hue(s){var h=0,i;for(i=0;i<s.length;i++)h=(h*131+s.charCodeAt(i))>>>0;return h%360;}
-  function avatarColor(s){var u=hue(s);return "linear-gradient(135deg,hsl("+u+" 55% 46%),hsl("+((u+28)%360)+" 58% 40%))";}
+  /* ---------- ndihmës ---------- */
+  function hueOf(s){var h=0,i;for(i=0;i<s.length;i++)h=(h*131+s.charCodeAt(i))>>>0;return h%360;}
+  function avatarColor(s){var u=hueOf(s);return "linear-gradient(135deg,hsl("+u+" 55% 46%),hsl("+((u+28)%360)+" 58% 40%))";}
   function initials(s){var p=s.split("-");return (p[0]?p[0][0]:"?").toUpperCase()+(p[1]?p[1][0]:"").toUpperCase();}
   function atBottom(){return scroll.scrollHeight-scroll.scrollTop-scroll.clientHeight<70;}
   function stick(wb){if(wb)scroll.scrollTop=scroll.scrollHeight;}
@@ -54,300 +54,272 @@
     stack.innerHTML=head+'<div class="bubble">'+esc(m.text)+'</div><div class="btime">'+clock(m.ts)+'</div>';
     row.appendChild(av); row.appendChild(stack); scroll.appendChild(row); stick(wb);
   }
-  function addSys(t){
-    var wb=atBottom(); var d=document.createElement("div"); d.className="sys";
-    d.innerHTML='<span class="pill">'+esc(t)+'</span>'; scroll.appendChild(d); lastSender=null; stick(wb);
+  function addSys(t){ var wb=atBottom(); var d=document.createElement("div"); d.className="sys"; d.innerHTML='<span class="pill">'+esc(t)+'</span>'; scroll.appendChild(d); lastSender=null; stick(wb); }
+
+  function connectedCount(){
+    if(role==="host"){ var n=0; Object.keys(peersConn).forEach(function(k){var p=peersConn[k];if(p&&p.dc&&p.dc.readyState==="open")n++;}); return n; }
+    return (peersConn.host&&peersConn.host.dc&&peersConn.host.dc.readyState==="open")?1:0;
   }
   function refreshCount(){
-    var n=Object.keys(roster).length+1;
-    peerCount.textContent=n;
-    var anyLive = (role==="host") ? Object.keys(peersConn).length>0 : !!(peersConn.host&&peersConn.host.dc&&peersConn.host.dc.readyState==="open");
-    statusDot.className="dot"+(anyLive?" live":"");
+    peerCount.textContent = Object.keys(roster).length+1;
+    statusDot.className="dot"+(connectedCount()>0?" live":"");
   }
 
-  /* ---------- kodimi i sinjalit (kompresim + base64url) ---------- */
+  /* ---------- kodimi i sinjalit ---------- */
   function packSignal(obj){
     var json=JSON.stringify(obj);
     try{
-      var gz=pako.deflate(json);
-      var bin=""; for(var i=0;i<gz.length;i++) bin+=String.fromCharCode(gz[i]);
+      var gz=pako.deflate(json), bin="",i;
+      for(i=0;i<gz.length;i++) bin+=String.fromCharCode(gz[i]);
       return "M1"+btoa(bin).replace(/\+/g,"-").replace(/\//g,"_").replace(/=+$/,"");
     }catch(e){ return "M0"+btoa(unescape(encodeURIComponent(json))); }
   }
   function unpackSignal(code){
-    code=(code||"").trim();
+    code=(code||"").trim().replace(/\s+/g,"");
     var tag=code.slice(0,2), body=code.slice(2);
     if(tag==="M1"){
-      var b=atob(body.replace(/-/g,"+").replace(/_/g,"/"));
-      var arr=new Uint8Array(b.length); for(var i=0;i<b.length;i++)arr[i]=b.charCodeAt(i);
+      var b=atob(body.replace(/-/g,"+").replace(/_/g,"/")), arr=new Uint8Array(b.length),i;
+      for(i=0;i<b.length;i++)arr[i]=b.charCodeAt(i);
       return JSON.parse(pako.inflate(arr,{to:"string"}));
     }
     if(tag==="M0") return JSON.parse(decodeURIComponent(escape(atob(body))));
-    throw new Error("Kod i panjohur");
+    throw new Error("tag");
   }
 
-  /* ---------- WebRTC: lidhje lokale (pa internet) ---------- */
-  function newPC(){
-    // pa STUN/TURN => vetëm kandidatë lokalë (host/mDNS) => punon brenda Wi-Fi-t pa internet
-    return new RTCPeerConnection({ iceServers: [] });
-  }
+  /* ---------- WebRTC ---------- */
+  function newPC(){ return new RTCPeerConnection({ iceServers: [] }); }
   function waitIce(pc){
     return new Promise(function(res){
       if(pc.iceGatheringState==="complete")return res();
-      var t=setTimeout(res,2500); // mos prit pafund
-      pc.onicegatheringstatechange=function(){ if(pc.iceGatheringState==="complete"){clearTimeout(t);res();} };
+      var done=false, t=setTimeout(function(){if(!done){done=true;res();}},3000);
+      pc.addEventListener("icegatheringstatechange",function(){
+        if(pc.iceGatheringState==="complete"&&!done){done=true;clearTimeout(t);res();}
+      });
     });
   }
-
-  function wireDataChannel(dc, peerId){
-    dc.onopen=function(){ onPeerOpen(peerId, dc); };
+  function wireDC(dc,peerId){
+    dc.onopen=function(){ onPeerOpen(peerId,dc); };
     dc.onclose=function(){ onPeerClose(peerId); };
-    dc.onmessage=function(ev){ onData(peerId, ev.data); };
+    dc.onmessage=function(ev){ onData(peerId,ev.data); };
   }
-
-  function onPeerOpen(peerId, dc){
+  function onPeerOpen(peerId,dc){
     if(role==="host"){
       peersConn[peerId]=peersConn[peerId]||{}; peersConn[peerId].dc=dc;
-      // dërgo të porsaardhurit identitetin tënd + rosterin
-      sendTo(dc,{t:"welcome",from:me.id,handle:me.handle});
+      sendOn(dc,{t:"welcome",from:me.id,handle:me.handle});
       broadcastRoster();
-      addSys("Një pjesëtar u lidh.");
+      enterChat(); addSys("Një pjesëtar u lidh.");
     }else{
       peersConn.host.dc=dc;
-      sendTo(dc,{t:"hello",from:me.id,handle:me.handle});
-      enterChat();
-      addSys("U lidhe me grupin.");
+      sendOn(dc,{t:"hello",from:me.id,handle:me.handle});
+      enterChat(); addSys("U lidhe me grupin.");
     }
     refreshCount();
   }
   function onPeerClose(peerId){
-    if(role==="host"){ delete peersConn[peerId]; delete roster[peerId]; broadcastRoster(); addSys("Një pjesëtar u shkëput."); }
-    else { addSys("U shkëpute nga host-i."); }
+    if(role==="host"){ delete peersConn[peerId]; delete roster[peerId]; broadcastRoster(); if(inChat)addSys("Një pjesëtar u shkëput."); }
+    else if(inChat){ addSys("U shkëpute nga host-i."); }
     refreshCount();
   }
+  function sendOn(dc,obj){ try{ if(dc&&dc.readyState==="open")dc.send(JSON.stringify(obj)); }catch(e){} }
 
-  function sendTo(dc,obj){ try{ if(dc&&dc.readyState==="open") dc.send(JSON.stringify(obj)); }catch(e){} }
-
-  function onData(peerId, raw){
-    var m; try{ m=JSON.parse(raw); }catch(e){ return; }
-
+  function onData(peerId,raw){
+    var m; try{m=JSON.parse(raw);}catch(e){return;}
     if(role==="host"){
       if(m.t==="hello"){ roster[m.from]=m.handle; if(peersConn[peerId])peersConn[peerId].handle=m.handle; broadcastRoster(); return; }
-      if(m.t==="msg"){
-        addMessage(m);               // shfaqe te host-i
-        relay(m, peerId);            // përcille te spoke-t e tjerë
-        return;
-      }
-    } else {
+      if(m.t==="msg"){ addMessage(m); relay(m,peerId); return; }
+    }else{
       if(m.t==="welcome"){ roster[m.from]=m.handle; refreshCount(); return; }
-      if(m.t==="roster"){ roster=m.roster||{}; delete roster[me.id]; refreshCount(); return; }
+      if(m.t==="roster"){ roster={}; Object.keys(m.roster||{}).forEach(function(k){if(k!==me.id)roster[k]=m.roster[k];}); refreshCount(); return; }
       if(m.t==="msg"){ addMessage(m); return; }
     }
   }
-
-  // host përcjell një mesazh te të gjithë spoke-t përveç dërguesit
-  function relay(m, exceptId){
-    Object.keys(peersConn).forEach(function(pid){
-      if(pid===exceptId)return;
-      sendTo(peersConn[pid].dc, m);
-    });
-  }
+  function relay(m,exceptId){ Object.keys(peersConn).forEach(function(pid){ if(pid!==exceptId)sendOn(peersConn[pid].dc,m); }); }
   function broadcastRoster(){
     var full={}; full[me.id]=me.handle;
-    Object.keys(peersConn).forEach(function(pid){ if(peersConn[pid].handle) full[pid]=peersConn[pid].handle; });
-    roster={}; Object.keys(full).forEach(function(k){ if(k!==me.id) roster[k]=full[k]; });
-    Object.keys(peersConn).forEach(function(pid){ sendTo(peersConn[pid].dc,{t:"roster",roster:full}); });
+    Object.keys(peersConn).forEach(function(pid){ if(peersConn[pid].handle)full[pid]=peersConn[pid].handle; });
+    roster={}; Object.keys(full).forEach(function(k){ if(k!==me.id)roster[k]=full[k]; });
+    Object.keys(peersConn).forEach(function(pid){ sendOn(peersConn[pid].dc,{t:"roster",roster:full}); });
     refreshCount();
   }
 
-  /* ---------- rrjedha e sinjalizimit (handshake me QR) ----------
-     GUEST fillon: krijon OFFER -> QR.  HOST skanon offer -> krijon ANSWER -> QR.
-     GUEST skanon answer -> lidhja hapet.
-  ------------------------------------------------------------------ */
-
-  // GUEST: krijo offer
+  /* ---------- handshake ---------- */
+  // GUEST krijon offer
   function guestCreateOffer(){
-    var peerId="host";
-    var pc=newPC(); pendingPC=pc;
+    sigBusy("Po krijoj kodin…");
+    var pc=newPC(); pendingGuestPC=pc;
     var dc=pc.createDataChannel("mesh");
-    peersConn.host={pc:pc}; wireDataChannel(dc,peerId);
-    pc.oniceconnectionstatechange=function(){ if(pc.iceConnectionState==="failed")showSignalError(); };
+    peersConn.host={pc:pc}; wireDC(dc,"host");
+    pc.oniceconnectionstatechange=function(){ if(pc.iceConnectionState==="failed")sigErr(); };
     pc.createOffer().then(function(o){return pc.setLocalDescription(o);})
       .then(function(){return waitIce(pc);})
       .then(function(){
-        var code=packSignal({r:"offer",sdp:pc.localDescription.sdp});
-        showOutgoing(code,"Trego këtë te HOST-i","Hapi 1 nga 2 · host-i e skanon këtë, pastaj të kthen një kod.");
-        prepareScan("Skano kodin e host-it", function(scanned){ guestApplyAnswer(scanned); });
-      }).catch(showSignalError);
+        showOut(packSignal({r:"offer",sdp:pc.localDescription.sdp}),
+          "Trego kodin te host-i","Hapi 1/2 · host-i e skanon këtë. Pastaj skano kodin që të kthen ai.");
+        armScan("Skano kodin e host-it", guestApplyAnswer);
+      }).catch(sigErr);
   }
   function guestApplyAnswer(code){
-    var sig; try{ sig=unpackSignal(code); }catch(e){ return toast("Kod i pavlefshëm"); }
-    if(sig.r!=="answer")return toast("Prisja një kod përgjigjeje");
-    pendingPC.setRemoteDescription({type:"answer",sdp:sig.sdp})
-      .then(function(){ toast("U lidh — pak sekonda…"); })
-      .catch(showSignalError);
+    var sig=tryUnpack(code); if(!sig)return;
+    if(sig.r!=="answer"){ sigMsg("Ky s'është kodi i duhur (prisja përgjigjen e host-it)."); rearm(); return; }
+    if(!pendingGuestPC){ sigMsg("Lidhja s'është gati. Rifillo."); return; }
+    pendingGuestPC.setRemoteDescription({type:"answer",sdp:sig.sdp})
+      .then(function(){ sigMsg("U gjet host-i — po lidhem…"); })
+      .catch(function(){ sigMsg("Kodi s'u pranua. Provo sërish."); rearm(); });
   }
-
-  // HOST: skano offer -> krijo answer
-  function hostScanOffer(){
-    role="host";
-    prepareScan("Skano kodin e pjesëtarit", function(code){ hostApplyOffer(code); });
-  }
+  // HOST skanon offer -> krijon answer
+  function hostScanOffer(){ role="host"; armScan("Skano kodin e pjesëtarit", hostApplyOffer); }
   function hostApplyOffer(code){
-    var sig; try{ sig=unpackSignal(code); }catch(e){ return toast("Kod i pavlefshëm"); }
-    if(sig.r!=="offer")return toast("Prisja një kod ftese");
+    var sig=tryUnpack(code); if(!sig)return;
+    if(sig.r!=="offer"){ sigMsg("Ky s'është kodi i duhur (prisja kodin e pjesëtarit)."); rearm(); return; }
+    sigBusy("Po krijoj përgjigjen…");
     var peerId="p"+Date.now().toString(36)+(Math.random()*1e4|0);
-    var pc=newPC();
-    peersConn[peerId]={pc:pc};
-    pc.ondatachannel=function(ev){ wireDataChannel(ev.channel,peerId); };
+    var pc=newPC(); peersConn[peerId]={pc:pc};
+    pc.ondatachannel=function(ev){ wireDC(ev.channel,peerId); };
     pc.oniceconnectionstatechange=function(){ if(pc.iceConnectionState==="failed"){delete peersConn[peerId];} };
     pc.setRemoteDescription({type:"offer",sdp:sig.sdp})
       .then(function(){return pc.createAnswer();})
       .then(function(a){return pc.setLocalDescription(a);})
       .then(function(){return waitIce(pc);})
       .then(function(){
-        var out=packSignal({r:"answer",sdp:pc.localDescription.sdp});
-        enterChat(); // host hyn menjëherë në bisedë
-        showOutgoing(out,"Trego këtë te pjesëtari","Hapi 2 nga 2 · pjesëtari e skanon dhe lidhja hapet.", true);
-      }).catch(showSignalError);
+        showOut(packSignal({r:"answer",sdp:pc.localDescription.sdp}),
+          "Trego kodin te pjesëtari","Hapi 2/2 · pjesëtari e skanon dhe lidhja hapet vetë.", true);
+      }).catch(sigErr);
+  }
+  function tryUnpack(code){
+    try{ return unpackSignal(code); }
+    catch(e){ sigMsg("Kod i pavlefshëm. Ky s'është kod NeJoAta — provo sërish."); rearm(); return null; }
   }
 
-  /* ---------- skaneri i QR (kamera) ---------- */
-  function prepareScan(label, cb){
-    openSignalView();
-    $("sigTitle").textContent=label;
-    $("scanWrap").hidden=false; $("outWrap").hidden=true;
-    startCamera(cb);
+  /* ---------- kamera / skaner ---------- */
+  function armScan(title,cb){
+    scanCb=cb; openSignal(); $("sigTitle").textContent=title;
+    $("outWrap").hidden=true; $("scanWrap").hidden=false; $("busyWrap").hidden=true; sigMsg("");
+    startCamera();
   }
-  function startCamera(cb){
+  function rearm(){ // rindiz skanerin pas një kodi të gabuar
+    if(!V.signal.hidden && !$("scanWrap").hidden) startCamera();
+  }
+  function startCamera(){
     stopCamera();
     var video=$("scanVideo"), canvas=$("scanCanvas"), ctx=canvas.getContext("2d");
+    if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia){ $("scanVideo").hidden=true; $("scanHint").textContent="Kamera s'disponohet. Ngjit kodin me dorë më poshtë."; return; }
     navigator.mediaDevices.getUserMedia({video:{facingMode:"environment"}}).then(function(s){
-      camStream=s; video.srcObject=s; video.setAttribute("playsinline","true"); video.play();
+      camStream=s; video.hidden=false; video.srcObject=s; video.setAttribute("playsinline","true"); video.muted=true;
+      var p=video.play(); if(p&&p.catch)p.catch(function(){});
       (function tick(){
         if(!camStream)return;
-        if(video.readyState===video.HAVE_ENOUGH_DATA){
+        if(video.readyState>=2 && video.videoWidth){
           canvas.width=video.videoWidth; canvas.height=video.videoHeight;
           ctx.drawImage(video,0,0,canvas.width,canvas.height);
-          var img=ctx.getImageData(0,0,canvas.width,canvas.height);
-          var res=window.jsQR?jsQR(img.data,img.width,img.height):null;
-          if(res&&res.data){ stopCamera(); cb(res.data); return; }
+          var img;
+          try{ img=ctx.getImageData(0,0,canvas.width,canvas.height); }catch(e){ img=null; }
+          var res = (img&&window.jsQR)?jsQR(img.data,img.width,img.height,{inversionAttempts:"dontInvert"}):null;
+          if(res&&res.data){ var cb=scanCb; stopCamera(); if(cb)cb(res.data); return; }
         }
         scanRAF=requestAnimationFrame(tick);
       })();
     }).catch(function(){
-      // pa kamerë: fsheh skanerin, lër vetëm ngjitjen e kodit
       $("scanVideo").hidden=true;
-      $("scanHint").textContent="Kamera s'u hap. Ngjit kodin me dorë më poshtë.";
+      $("scanHint").textContent="Kamera s'u hap (lejo kamerën, ose ngjit kodin me dorë më poshtë).";
     });
   }
   function stopCamera(){
     if(scanRAF){cancelAnimationFrame(scanRAF);scanRAF=null;}
     if(camStream){camStream.getTracks().forEach(function(t){t.stop();});camStream=null;}
-    var v=$("scanVideo"); if(v){v.hidden=false;}
   }
 
-  /* ---------- paraqitja e kodit dalës (QR + tekst) ---------- */
-  function showOutgoing(code, title, hint, hostDone){
-    openSignalView();
-    $("sigTitle").textContent=title;
-    $("outHint").textContent=hint||"";
-    $("scanWrap").hidden=true; $("outWrap").hidden=false;
-    var box=$("qrBox"); box.innerHTML="";
-    try{
-      new QRCode(box,{text:code,width:232,height:232,correctLevel:QRCode.CorrectLevel.L});
-      $("qrNote").textContent="";
-    }catch(e){
-      $("qrNote").textContent="Kodi është i gjatë për QR — përdor tekstin më poshtë.";
-    }
+  /* ---------- kodi dalës (QR + tekst) ---------- */
+  function showOut(code,title,hint,hostDone){
+    openSignal(); $("sigTitle").textContent=title; $("outHint").textContent=hint||"";
+    $("scanWrap").hidden=true; $("busyWrap").hidden=true; $("outWrap").hidden=false; sigMsg("");
+    var canvas=$("qrCanvas"); $("qrNote").textContent="";
+    if(window.QRCode&&QRCode.toCanvas){
+      QRCode.toCanvas(canvas,code,{width:236,margin:1,errorCorrectionLevel:"L"},function(err){
+        if(err){ canvas.hidden=true; $("qrNote").textContent="Kodi është i gjatë për QR — përdor tekstin më poshtë."; }
+        else canvas.hidden=false;
+      });
+    }else{ canvas.hidden=true; $("qrNote").textContent="Përdor tekstin më poshtë."; }
     $("codeText").value=code;
-    // nëse host-i tashmë hyri, jep buton "mbaro"
     $("outDone").hidden=!hostDone;
+    $("outScanNext").hidden=!!hostDone; // guest: pas QR, kalo te skanimi i përgjigjes
   }
-
-  function toast(t){ addSysToSignal(t); }
-  function addSysToSignal(t){ var el=$("sigMsg"); if(el){el.textContent=t;} }
-  function showSignalError(){ addSysToSignal("Lidhja dështoi. Sigurohu që të dy jeni në të njëjtin Wi-Fi/hotspot dhe provo sërish."); }
+  function sigBusy(txt){ openSignal(); $("outWrap").hidden=true; $("scanWrap").hidden=true; $("busyWrap").hidden=false; $("busyTxt").textContent=txt||"Një moment…"; sigMsg(""); }
+  function sigMsg(t){ var el=$("sigMsg"); if(el)el.textContent=t||""; }
+  function sigErr(){ sigMsg("Lidhja dështoi. Sigurohu që të dy jeni në të njëjtin Wi-Fi/hotspot dhe provo sërish."); }
 
   /* ---------- kalimet mes ekraneve ---------- */
-  function openRole(){ hideAll(); roleView.hidden=false; }
-  function openSignalView(){ hideAll(); signalView.hidden=false; }
+  function show(view){ Object.keys(V).forEach(function(k){ V[k].hidden = (V[k]!==view); }); if(view!==V.signal)stopCamera(); }
+  function openGate(){ inChat=false; show(V.gate); }
+  function openRole(){ show(V.role); }
+  function openHostWait(){ role="host"; show(V.hostWait); }
+  function openSignal(){ show(V.signal); }
   function enterChat(){
-    hideAll(); app.hidden=false;
+    inChat=true; show(V.app);
     roomLabel.textContent = role==="host" ? "ti je host" : "i lidhur";
     if(!enterChat._greeted){ addSys("Hyre si "+me.handle+" · mesazhet nuk ruhen"); enterChat._greeted=true; }
     refreshCount(); input.focus();
   }
-  function hideAll(){ gate.hidden=true; roleView.hidden=true; signalView.hidden=true; app.hidden=true; guide.hidden=true; stopCamera(); }
 
-  /* ---------- dërgimi i mesazheve ---------- */
+  /* ---------- dërgimi ---------- */
   function sendMsg(text){
     var m={t:"msg",id:me.id+"-"+Date.now()+"-"+(Math.random().toString(36).slice(2,6)),from:me.id,handle:me.handle,text:text,ts:Date.now()};
     addMessage(m);
-    if(role==="host"){ relay(m,null); }
-    else if(peersConn.host){ sendTo(peersConn.host.dc,m); }
+    if(role==="host")relay(m,null);
+    else if(peersConn.host)sendOn(peersConn.host.dc,m);
   }
 
-  /* ---------- fshirja / paniku ---------- */
+  /* ---------- fshirja ---------- */
   function wipe(){
-    try{
-      Object.keys(peersConn).forEach(function(k){
-        var p=peersConn[k]; if(!p)return;
-        if(p.dc)try{p.dc.close();}catch(e){}
-        if(p.pc)try{p.pc.close();}catch(e){}
-      });
-    }catch(e){}
-    peersConn={}; roster={}; seen={}; lastSender=null; role=null; pendingPC=null;
+    try{ Object.keys(peersConn).forEach(function(k){var p=peersConn[k];if(!p)return;if(p.dc)try{p.dc.close();}catch(e){}if(p.pc)try{p.pc.close();}catch(e){}}); }catch(e){}
+    peersConn={}; roster={}; seen={}; lastSender=null; role=null; pendingGuestPC=null; inChat=false;
     scroll.innerHTML=""; enterChat._greeted=false;
     me={ handle:randHandle(), id:Math.random().toString(36).slice(2)+Date.now().toString(36) };
     stopCamera(); openGate();
   }
-  function openGate(){ hideAll(); gate.hidden=false; }
 
   /* ---------- lidhja e butonave ---------- */
   $("startBtn").addEventListener("click", openRole);
-  $("learnBtn").addEventListener("click", openGuideScreen);
-  $("roleHost").addEventListener("click", function(){ role="host"; hostScanOffer(); });
+  $("learnBtn").addEventListener("click", function(){ V.guide.dataset.back="gate"; V.guide.hidden=false; V.guide.scrollTop=0; });
+
+  $("roleHost").addEventListener("click", openHostWait);
   $("roleGuest").addEventListener("click", function(){ role="guest"; guestCreateOffer(); });
   $("roleBack").addEventListener("click", openGate);
 
+  // host waiting room
+  $("hwScan").addEventListener("click", hostScanOffer);
+  $("hwEnter").addEventListener("click", enterChat);
+  $("hwBack").addEventListener("click", openRole);
+
+  // sinjalizimi
   $("pasteBtn").addEventListener("click", function(){
     var v=$("pasteCode").value.trim(); if(!v)return;
     stopCamera();
-    if(role==="host") hostApplyOffer(v); else guestApplyAnswer(v);
+    if(scanCb) scanCb(v);
   });
   $("copyCode").addEventListener("click", function(){
     var ta=$("codeText");
     if(navigator.clipboard&&navigator.clipboard.writeText){
-      navigator.clipboard.writeText(ta.value).then(function(){ $("copyCode").textContent="U kopjua ✓"; setTimeout(function(){$("copyCode").textContent="Kopjo kodin";},1500); })
-        .catch(function(){ ta.select(); });
-    }else{ ta.select(); }
+      navigator.clipboard.writeText(ta.value).then(function(){ $("copyCode").textContent="U kopjua ✓"; setTimeout(function(){$("copyCode").textContent="Kopjo kodin";},1500); }).catch(function(){ ta.focus(); ta.select(); });
+    }else{ ta.focus(); ta.select(); }
   });
-  $("outDone").addEventListener("click", enterChat);
-  $("sigBack").addEventListener("click", function(){ stopCamera(); role==="host"?enterChat():openRole(); });
+  $("outScanNext").addEventListener("click", function(){ armScan("Skano kodin e host-it", guestApplyAnswer); });
+  $("outDone").addEventListener("click", function(){ if(connectedCount()>0||role==="host") enterChat(); });
+  // "mbrapa" te sinjalizimi: kurrë në bisedë — kthehu te ekrani i duhur
+  $("sigBack").addEventListener("click", function(){ stopCamera(); if(role==="host")openHostWait(); else openRole(); });
 
   function autoGrow(){ input.style.height="auto"; input.style.height=Math.min(input.scrollHeight,120)+"px"; }
   input.addEventListener("input", function(){ autoGrow(); sendBtn.disabled=input.value.trim().length===0; });
   input.addEventListener("keydown", function(e){ if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();composer.requestSubmit();} });
-  composer.addEventListener("submit", function(e){
-    e.preventDefault(); var t=input.value.trim(); if(!t)return;
-    sendMsg(t); input.value=""; autoGrow(); sendBtn.disabled=true; input.focus();
-  });
+  composer.addEventListener("submit", function(e){ e.preventDefault(); var t=input.value.trim(); if(!t)return; sendMsg(t); input.value=""; autoGrow(); sendBtn.disabled=true; input.focus(); });
 
-  // host mund të shtojë persona të tjerë pa prishur bisedën
-  $("addPeerBtn").addEventListener("click", function(){ hostScanOffer(); });
-
+  $("addPeerBtn").addEventListener("click", function(){ role="host"; hostScanOffer(); });
   $("panicBtn").addEventListener("click", wipe);
-  $("guideBtn").addEventListener("click", openGuideScreen);
+  $("guideBtn").addEventListener("click", function(){ V.guide.dataset.back="app"; V.guide.hidden=false; V.guide.scrollTop=0; });
+  function closeGuide(){ V.guide.hidden=true; if(V.guide.dataset.back==="app"&&inChat)V.app.hidden=false; else if(role==="host"&&!inChat)V.hostWait.hidden=false; else V.gate.hidden=false; }
   $("guideClose").addEventListener("click", closeGuide);
   $("guideDone").addEventListener("click", closeGuide);
-  function openGuideScreen(){ var back=app.hidden; guide.hidden=false; guide.dataset.back=back?"gate":"app"; guide.scrollTop=0; }
-  function closeGuide(){ guide.hidden=true; if(guide.dataset.back==="app"&&role) app.hidden=false; else gate.hidden=false; }
 
-  /* ---------- regjistro service worker ---------- */
-  if("serviceWorker" in navigator){
-    window.addEventListener("load", function(){ navigator.serviceWorker.register("./sw.js").catch(function(){}); });
-  }
+  if("serviceWorker" in navigator){ window.addEventListener("load", function(){ navigator.serviceWorker.register("./sw.js").catch(function(){}); }); }
 
   openGate();
 })();

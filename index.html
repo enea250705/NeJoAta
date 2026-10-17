@@ -10,9 +10,6 @@
 <title>NeJoAta</title>
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&family=Inter:wght@400;450;500;600;700&display=swap">
 <style>
   :root{
     --bg:#f3f4f1;--surface:#fff;--surface-2:#eceee8;--surface-3:#e2e5dd;
@@ -22,7 +19,8 @@
     --danger:#a5342b;--danger-bg:#f6ddda;--danger-line:#dfa49d;
     --mine-bg:#d7e8dd;--mine-line:#b7d3c3;
     --radius:12px;--radius-sm:9px;--shadow:0 1px 2px rgba(20,30,22,.04),0 2px 8px rgba(20,30,22,.05);
-    --serif:"Fraunces",Georgia,serif;--sans:"Inter",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+    --serif:Georgia,"Times New Roman",serif;
+    --sans:system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
     --mono:ui-monospace,"SF Mono","Cascadia Mono",Menlo,Consolas,monospace;
   }
   @media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
@@ -46,8 +44,7 @@
   *{box-sizing:border-box;}
   html,body{height:100%;margin:0;}
   body{background:var(--bg);color:var(--fg);font-family:var(--sans);font-size:15px;line-height:1.5;
-    font-feature-settings:"cv05" 1,"ss01" 1;-webkit-font-smoothing:antialiased;
-    padding-top:env(safe-area-inset-top,0);padding-bottom:env(safe-area-inset-bottom,0);}
+    -webkit-font-smoothing:antialiased;padding-top:env(safe-area-inset-top,0);padding-bottom:env(safe-area-inset-bottom,0);}
   #app{display:flex;flex-direction:column;height:100%;max-width:780px;margin:0 auto;}
   img{max-width:100%;}
   [hidden]{display:none!important;}
@@ -61,13 +58,11 @@
   .bar .room{font-size:11.5px;color:var(--fg-dim);font-family:var(--mono);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:40vw;}
   .bar .spacer{flex:1;}
   .status{display:inline-flex;align-items:center;gap:6px;font-size:11.5px;color:var(--fg-dim);
-    background:var(--surface-2);border:1px solid var(--line);border-radius:999px;padding:4px 10px;
-    font-variant-numeric:tabular-nums;white-space:nowrap;}
+    background:var(--surface-2);border:1px solid var(--line);border-radius:999px;padding:4px 10px;font-variant-numeric:tabular-nums;white-space:nowrap;}
   .status .dot{width:7px;height:7px;border-radius:50%;background:var(--fg-faint);flex:none;}
   .status .dot.live{background:var(--accent-2);box-shadow:0 0 0 3px color-mix(in srgb,var(--accent-2) 22%,transparent);}
-  .iconbtn{font:inherit;display:inline-flex;align-items:center;justify-content:center;gap:6px;
-    border:1px solid var(--line);background:var(--surface-2);color:var(--fg);border-radius:var(--radius-sm);
-    padding:7px 9px;cursor:pointer;transition:border-color .15s,background .15s;}
+  .iconbtn{font:inherit;display:inline-flex;align-items:center;justify-content:center;gap:6px;border:1px solid var(--line);
+    background:var(--surface-2);color:var(--fg);border-radius:var(--radius-sm);padding:7px 9px;cursor:pointer;transition:border-color .15s,background .15s;}
   .iconbtn svg{width:16px;height:16px;}
   .iconbtn:hover{border-color:var(--accent);background:var(--surface-3);}
   .iconbtn.panic{border-color:color-mix(in srgb,var(--danger) 45%,var(--line));color:var(--danger);background:var(--danger-bg);font-weight:600;}
@@ -80,8 +75,7 @@
   .row{display:flex;gap:9px;align-items:flex-end;max-width:88%;margin-top:10px;}
   .row.mine{align-self:flex-end;flex-direction:row-reverse;}
   .row.grouped{margin-top:2px;}
-  .avatar{width:30px;height:30px;flex:none;border-radius:50%;display:flex;align-items:center;justify-content:center;
-    font-size:11px;font-weight:650;color:#fff;user-select:none;}
+  .avatar{width:30px;height:30px;flex:none;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:650;color:#fff;user-select:none;}
   .row.grouped .avatar{visibility:hidden;height:0;}
   .stack{min-width:0;display:flex;flex-direction:column;gap:2px;}
   .row.mine .stack{align-items:flex-end;}
@@ -98,11 +92,8 @@
   .composer{border-top:1px solid var(--line);background:var(--surface);
     padding:11px max(12px,env(safe-area-inset-right,0)) max(11px,env(safe-area-inset-bottom,0)) max(12px,env(safe-area-inset-left,0));
     display:flex;gap:9px;align-items:flex-end;}
-  .composer .toolbtn{flex:none;width:40px;height:40px;border-radius:50%;border:1px solid var(--line);
-    background:var(--surface-2);color:var(--fg);cursor:pointer;display:flex;align-items:center;justify-content:center;}
-  .composer .toolbtn svg{width:18px;height:18px;}
-  .composer textarea{flex:1;min-width:0;resize:none;font:inherit;font-size:15px;color:var(--fg);
-    background:var(--bg);border:1px solid var(--line);border-radius:13px;padding:10px 13px;max-height:120px;line-height:1.45;}
+  .composer textarea{flex:1;min-width:0;resize:none;font:inherit;font-size:15px;color:var(--fg);background:var(--bg);
+    border:1px solid var(--line);border-radius:13px;padding:10px 13px;max-height:120px;line-height:1.45;}
   .composer textarea:focus-visible{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px color-mix(in srgb,var(--accent) 16%,transparent);}
   .composer .send{flex:none;width:44px;height:44px;background:var(--accent);color:var(--accent-fg);border:none;border-radius:50%;
     cursor:pointer;display:flex;align-items:center;justify-content:center;transition:transform .1s,background .15s;}
@@ -115,58 +106,50 @@
   .panel{width:100%;max-width:420px;margin:auto 0;}
   .hero-lock{display:flex;flex-direction:column;align-items:center;text-align:center;margin-bottom:24px;}
   .hero-lock .mark{width:54px;height:54px;margin-bottom:14px;}
-  .hero-lock h1{font-family:var(--serif);font-size:32px;font-weight:600;margin:0 0 6px;letter-spacing:-.5px;}
+  .hero-lock h1{font-family:var(--serif);font-size:30px;font-weight:600;margin:0 0 6px;letter-spacing:-.5px;}
   .hero-lock .tag{color:var(--fg-dim);font-size:14.5px;margin:0;max-width:32ch;line-height:1.5;}
   .card{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:18px;margin-bottom:14px;box-shadow:var(--shadow);}
   .card h2{font-size:11.5px;text-transform:uppercase;letter-spacing:.7px;color:var(--fg-faint);margin:0 0 12px;font-weight:650;}
-  .warn{background:var(--warn-bg);color:var(--warn-fg);border:1px solid var(--warn-line);border-radius:var(--radius-sm);
-    padding:12px 14px;font-size:12.5px;line-height:1.55;margin-bottom:14px;}
+  .warn{background:var(--warn-bg);color:var(--warn-fg);border:1px solid var(--warn-line);border-radius:var(--radius-sm);padding:12px 14px;font-size:12.5px;line-height:1.55;margin-bottom:14px;}
   .warn strong{font-weight:700;}
-  .btn-primary{width:100%;background:var(--accent);color:var(--accent-fg);border:none;border-radius:var(--radius-sm);
-    padding:14px;font:inherit;font-weight:650;font-size:15px;cursor:pointer;transition:background .15s;}
+  .btn-primary{width:100%;background:var(--accent);color:var(--accent-fg);border:none;border-radius:var(--radius-sm);padding:14px;font:inherit;font-weight:650;font-size:15px;cursor:pointer;transition:background .15s;}
   .btn-primary:hover{background:var(--accent-2);}
-  .btn-ghost{width:100%;background:transparent;color:var(--fg);border:1px solid var(--line);border-radius:var(--radius-sm);
-    padding:12px;font:inherit;font-weight:500;cursor:pointer;margin-top:9px;transition:border-color .15s,background .15s;}
+  .btn-primary:disabled{opacity:.4;cursor:default;}
+  .btn-ghost{width:100%;background:transparent;color:var(--fg);border:1px solid var(--line);border-radius:var(--radius-sm);padding:12px;font:inherit;font-weight:500;cursor:pointer;margin-top:9px;transition:border-color .15s,background .15s;}
   .btn-ghost:hover{border-color:var(--accent);background:var(--surface-2);}
   .foot{font-size:11px;color:var(--fg-faint);text-align:center;margin-top:8px;line-height:1.55;}
   a{color:var(--accent);}
 
-  /* roli host/guest */
-  .choice{width:100%;text-align:left;background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);
-    padding:16px 17px;margin-bottom:12px;cursor:pointer;display:flex;gap:13px;align-items:flex-start;box-shadow:var(--shadow);
-    transition:border-color .15s,transform .1s;}
+  .choice{width:100%;text-align:left;background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:16px 17px;margin-bottom:12px;cursor:pointer;display:flex;gap:13px;align-items:flex-start;box-shadow:var(--shadow);transition:border-color .15s,transform .1s;}
   .choice:hover{border-color:var(--accent);}
   .choice:active{transform:scale(.995);}
-  .choice .ic{width:38px;height:38px;flex:none;border-radius:10px;background:var(--accent-soft);
-    display:flex;align-items:center;justify-content:center;color:var(--accent);}
+  .choice .ic{width:38px;height:38px;flex:none;border-radius:10px;background:var(--accent-soft);display:flex;align-items:center;justify-content:center;color:var(--accent);}
   .choice .ic svg{width:20px;height:20px;}
   .choice h3{margin:0 0 3px;font-size:15.5px;font-weight:650;}
   .choice p{margin:0;font-size:13px;color:var(--fg-dim);line-height:1.5;}
   .backlink{background:none;border:none;color:var(--fg-dim);font:inherit;font-size:13px;cursor:pointer;padding:8px;margin-top:4px;width:100%;}
 
-  /* sinjalizimi (QR + skaner) */
-  #signalView .panel{max-width:400px;}
+  #signalView .panel,#hostWait .panel{max-width:400px;}
   .sig-title{font-family:var(--serif);font-size:22px;font-weight:600;margin:0 0 4px;text-align:center;}
   .sig-sub{font-size:13px;color:var(--fg-dim);text-align:center;margin:0 0 18px;line-height:1.5;}
-  #qrBox{display:flex;justify-content:center;background:#fff;border-radius:var(--radius);padding:16px;margin:0 auto 12px;width:max-content;max-width:100%;}
-  #qrBox img,#qrBox canvas{display:block;}
+  #qrWrap{display:flex;justify-content:center;background:#fff;border-radius:var(--radius);padding:14px;margin:0 auto 12px;width:max-content;max-width:100%;}
+  #qrCanvas{display:block;width:236px;height:236px;max-width:100%;}
   .qr-note{font-size:12px;color:var(--warn-fg);text-align:center;margin:0 0 10px;min-height:1em;}
   .codewrap{margin-top:8px;}
   .codewrap label{font-size:12px;color:var(--fg-dim);display:block;margin-bottom:5px;}
-  textarea.code{width:100%;font-family:var(--mono);font-size:11px;color:var(--fg);background:var(--bg);
-    border:1px solid var(--line);border-radius:var(--radius-sm);padding:9px;height:70px;resize:none;word-break:break-all;}
-  #scanVideo{width:100%;border-radius:var(--radius);background:#000;aspect-ratio:1;object-fit:cover;}
+  textarea.code{width:100%;font-family:var(--mono);font-size:11px;color:var(--fg);background:var(--bg);border:1px solid var(--line);border-radius:var(--radius-sm);padding:9px;height:64px;resize:none;word-break:break-all;}
+  .scan-frame{position:relative;width:100%;max-width:300px;margin:0 auto 12px;aspect-ratio:1;background:#000;border-radius:var(--radius);overflow:hidden;}
+  #scanVideo{width:100%;height:100%;object-fit:cover;display:block;}
   #scanCanvas{display:none;}
-  .scan-frame{position:relative;width:100%;max-width:300px;margin:0 auto 12px;}
-  .scan-frame::after{content:"";position:absolute;inset:14%;border:2px solid rgba(255,255,255,.7);border-radius:12px;pointer-events:none;}
+  .scan-frame::after{content:"";position:absolute;inset:14%;border:2px solid rgba(255,255,255,.75);border-radius:12px;pointer-events:none;}
   .scan-hint{font-size:12.5px;color:var(--fg-dim);text-align:center;margin:0 0 14px;}
-  .sig-msg{font-size:12.5px;color:var(--danger);text-align:center;margin:10px 0 0;min-height:1em;}
-  .inp{width:100%;font-family:var(--mono);font-size:11px;color:var(--fg);background:var(--bg);border:1px solid var(--line);
-    border-radius:var(--radius-sm);padding:9px;height:58px;resize:none;margin-bottom:8px;word-break:break-all;}
-  .btn-row{display:flex;gap:8px;}
-  .btn-row>*{flex:1;}
+  .sig-msg{font-size:12.5px;color:var(--danger);text-align:center;margin:10px 0 0;min-height:1.1em;}
+  .inp{width:100%;font-family:var(--mono);font-size:11px;color:var(--fg);background:var(--bg);border:1px solid var(--line);border-radius:var(--radius-sm);padding:9px;height:54px;resize:none;margin-bottom:8px;word-break:break-all;}
+  .busy{text-align:center;padding:30px 0;}
+  .spinner{width:34px;height:34px;border:3px solid var(--line);border-top-color:var(--accent);border-radius:50%;margin:0 auto 14px;animation:spin 1s linear infinite;}
+  @keyframes spin{to{transform:rotate(360deg);}}
+  @media (prefers-reduced-motion:reduce){.spinner{animation:none;}}
 
-  /* udhëzuesi */
   #guide .panel{max-width:680px;}
   .guide-head{position:sticky;top:0;background:var(--bg);z-index:5;display:flex;justify-content:space-between;align-items:center;padding:4px 0 14px;}
   .guide-head h1{font-family:var(--serif);font-size:22px;margin:0;font-weight:600;letter-spacing:-.3px;}
@@ -184,9 +167,7 @@
   .fact p{margin:0;font-size:13px;color:var(--fg-dim);line-height:1.5;}
   ol.steps{list-style:none;counter-reset:s;margin:6px 0;padding:0;display:flex;flex-direction:column;gap:11px;}
   ol.steps>li{counter-increment:s;position:relative;background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:16px 17px 16px 56px;box-shadow:var(--shadow);}
-  ol.steps>li::before{content:counter(s);position:absolute;left:15px;top:15px;width:28px;height:28px;border-radius:9px;
-    background:var(--accent-soft);color:var(--accent);border:1px solid color-mix(in srgb,var(--accent) 30%,transparent);
-    font-weight:700;font-size:14px;display:flex;align-items:center;justify-content:center;}
+  ol.steps>li::before{content:counter(s);position:absolute;left:15px;top:15px;width:28px;height:28px;border-radius:9px;background:var(--accent-soft);color:var(--accent);border:1px solid color-mix(in srgb,var(--accent) 30%,transparent);font-weight:700;font-size:14px;display:flex;align-items:center;justify-content:center;}
   ol.steps h3{margin:2px 0 5px;font-size:15px;font-weight:650;}
   ol.steps p{margin:0;font-size:13.5px;color:var(--fg-dim);line-height:1.55;}
   .note{border-radius:var(--radius);padding:15px 17px;margin:16px 0;font-size:14px;line-height:1.6;}
@@ -218,32 +199,19 @@
       <circle cx="16" cy="16" r="3.2" fill="var(--accent)"/>
       <circle cx="6" cy="7" r="2.3" fill="var(--accent)"/><circle cx="26" cy="7" r="2.3" fill="var(--accent)"/>
       <circle cx="6" cy="25" r="2.3" fill="var(--accent)"/><circle cx="26" cy="25" r="2.3" fill="var(--accent)"/>
-      <g stroke="var(--accent)" stroke-width="1.4" opacity=".5">
-        <line x1="16" y1="16" x2="6" y2="7"/><line x1="16" y1="16" x2="26" y2="7"/>
-        <line x1="16" y1="16" x2="6" y2="25"/><line x1="16" y1="16" x2="26" y2="25"/></g>
+      <g stroke="var(--accent)" stroke-width="1.4" opacity=".5"><line x1="16" y1="16" x2="6" y2="7"/><line x1="16" y1="16" x2="26" y2="7"/><line x1="16" y1="16" x2="6" y2="25"/><line x1="16" y1="16" x2="26" y2="25"/></g>
     </svg>
     <div class="titles"><div class="title">NeJoAta</div><div class="room" id="roomLabel">—</div></div>
     <span class="spacer"></span>
     <span class="status"><span class="dot" id="statusDot"></span><span id="peerCount">1</span></span>
-    <button class="iconbtn" id="addPeerBtn" title="Shto një pjesëtar">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M19 8v6M22 11h-6"/></svg>
-      <span class="lbl">Shto</span>
-    </button>
-    <button class="iconbtn" id="guideBtn" title="Udhëzuesi">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
-      <span class="lbl">Udhëzuesi</span>
-    </button>
-    <button class="iconbtn panic" id="panicBtn" title="Fshij gjithçka">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M8 6V4h8v2m-1 0 .5 14h-7L7 6"/></svg>
-      <span class="lbl">Fshij</span>
-    </button>
+    <button class="iconbtn" id="addPeerBtn" title="Shto një pjesëtar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M19 8v6M22 11h-6"/></svg><span class="lbl">Shto</span></button>
+    <button class="iconbtn" id="guideBtn" title="Udhëzuesi"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg><span class="lbl">Udhëzuesi</span></button>
+    <button class="iconbtn panic" id="panicBtn" title="Fshij gjithçka"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M8 6V4h8v2m-1 0 .5 14h-7L7 6"/></svg><span class="lbl">Fshij</span></button>
   </div>
   <div class="scroll" id="scroll" aria-live="polite"></div>
   <form class="composer" id="composer">
     <textarea id="input" rows="1" placeholder="Shkruaj në dhomë…" maxlength="2000" autocomplete="off"></textarea>
-    <button type="submit" class="send" id="sendBtn" disabled aria-label="Dërgo">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 2 11 13M22 2l-7 20-4-9-9-4 20-7z"/></svg>
-    </button>
+    <button type="submit" class="send" id="sendBtn" disabled aria-label="Dërgo"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 2 11 13M22 2l-7 20-4-9-9-4 20-7z"/></svg></button>
   </form>
 </div>
 
@@ -255,18 +223,12 @@
         <circle cx="16" cy="16" r="3.4" fill="var(--accent)"/>
         <circle cx="6" cy="7" r="2.5" fill="var(--accent)"/><circle cx="26" cy="7" r="2.5" fill="var(--accent)"/>
         <circle cx="6" cy="25" r="2.5" fill="var(--accent)"/><circle cx="26" cy="25" r="2.5" fill="var(--accent)"/>
-        <g stroke="var(--accent)" stroke-width="1.5" opacity=".55">
-          <line x1="16" y1="16" x2="6" y2="7"/><line x1="16" y1="16" x2="26" y2="7"/>
-          <line x1="16" y1="16" x2="6" y2="25"/><line x1="16" y1="16" x2="26" y2="25"/></g>
+        <g stroke="var(--accent)" stroke-width="1.5" opacity=".55"><line x1="16" y1="16" x2="6" y2="7"/><line x1="16" y1="16" x2="26" y2="7"/><line x1="16" y1="16" x2="6" y2="25"/><line x1="16" y1="16" x2="26" y2="25"/></g>
       </svg>
       <h1>NeJoAta</h1>
       <p class="tag">Bisedë lokale anonime pa internet. Lidhje telefon-me-telefon mbi Wi-Fi lokal.</p>
     </div>
-    <div class="warn">
-      <strong>Si funksionon.</strong> Lidhuni të gjithë në të njëjtin Wi-Fi ose hotspot (me të dhënat
-      celulare <b>të fikura</b> → zero internet). Një person bëhet <b>host</b>; të tjerët <b>bashkohen</b>
-      duke skanuar një kod QR. Pa server, pa llogari, asgjë e ruajtur.
-    </div>
+    <div class="warn"><strong>Si funksionon.</strong> Lidhuni të gjithë në të njëjtin Wi-Fi ose hotspot (me të dhënat celulare <b>të fikura</b> → zero internet). Një person bëhet <b>host</b>; të tjerët <b>bashkohen</b> duke skanuar një kod QR. Pa server, pa llogari, asgjë e ruajtur.</div>
     <button class="btn-primary" id="startBtn">Fillo</button>
     <button class="btn-ghost" id="learnBtn">Udhëzuesi: si funksionon &amp; siguria</button>
     <p class="foot">Instaloje në home screen për ta hapur si app. Pas instalimit të parë, punon pa internet.</p>
@@ -276,34 +238,40 @@
 <!-- ===== ROLI ===== -->
 <div class="overlay" id="roleView" hidden>
   <div class="panel">
-    <div class="hero-lock" style="margin-bottom:18px"><h1 style="font-size:24px">Si do të lidhesh?</h1>
-      <p class="tag">Një person e nis dhomën (host). Të tjerët bashkohen te ai.</p></div>
-    <button class="choice" id="roleHost">
-      <span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><circle cx="4" cy="6" r="1.6"/><circle cx="20" cy="6" r="1.6"/><circle cx="4" cy="18" r="1.6"/><circle cx="20" cy="18" r="1.6"/><path d="m12 12-8-6m8 6 8-6M12 12l-8 6m8-6 8 6"/></svg></span>
-      <span><h3>Krijo dhomën (host)</h3><p>Ti bëhesh qendra. Skanon kodin e secilit që bashkohet. Mesazhet kalojnë përmes teje.</p></span>
-    </button>
-    <button class="choice" id="roleGuest">
-      <span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><path d="m10 17 5-5-5-5M15 12H3"/></svg></span>
-      <span><h3>Bashkohu</h3><p>Shfaq kodin tënd QR; host-i e skanon dhe të kthen një kod që ti e skanon.</p></span>
-    </button>
+    <div class="hero-lock" style="margin-bottom:18px"><h1 style="font-size:24px">Si do të lidhesh?</h1><p class="tag">Një person e nis dhomën (host). Të tjerët bashkohen te ai.</p></div>
+    <button class="choice" id="roleHost"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><circle cx="4" cy="6" r="1.6"/><circle cx="20" cy="6" r="1.6"/><circle cx="4" cy="18" r="1.6"/><circle cx="20" cy="18" r="1.6"/><path d="m12 12-8-6m8 6 8-6M12 12l-8 6m8-6 8 6"/></svg></span><span><h3>Krijo dhomën (host)</h3><p>Ti bëhesh qendra. Skanon kodin e secilit që bashkohet. Mesazhet kalojnë përmes teje.</p></span></button>
+    <button class="choice" id="roleGuest"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><path d="m10 17 5-5-5-5M15 12H3"/></svg></span><span><h3>Bashkohu</h3><p>Shfaq kodin tënd QR; host-i e skanon dhe të kthen një kod që ti e skanon.</p></span></button>
     <button class="backlink" id="roleBack">← Mbrapa</button>
   </div>
 </div>
 
-<!-- ===== SINJALIZIMI (QR/SKANER) ===== -->
+<!-- ===== HOST PO PRET ===== -->
+<div class="overlay" id="hostWait" hidden>
+  <div class="panel">
+    <div class="hero-lock" style="margin-bottom:16px"><h1 style="font-size:23px">Ti je host</h1><p class="tag">Shto secilin pjesëtar duke skanuar kodin e tij. Pastaj hyr në bisedë.</p></div>
+    <div class="card">
+      <h2>Si të shtosh dikë</h2>
+      <p style="margin:0 0 14px;font-size:13.5px;color:var(--fg-dim);line-height:1.6">Pjesëtari zgjedh <b>“Bashkohu”</b> dhe të tregon kodin e tij QR. Ti e skanon, pastaj i tregon kodin që del — ai e skanon dhe lidhja hapet.</p>
+      <button class="btn-primary" id="hwScan">Skano kodin e një pjesëtari</button>
+      <button class="btn-ghost" id="hwEnter">Hyr në bisedë (po pres) →</button>
+    </div>
+    <button class="backlink" id="hwBack">← Mbrapa</button>
+  </div>
+</div>
+
+<!-- ===== SINJALIZIMI ===== -->
 <div class="overlay" id="signalView" hidden>
   <div class="panel">
     <h2 class="sig-title" id="sigTitle">Lidhja</h2>
     <p class="sig-sub" id="outHint"></p>
 
+    <div id="busyWrap" hidden><div class="busy"><div class="spinner"></div><p id="busyTxt" style="color:var(--fg-dim);font-size:13.5px;margin:0">Një moment…</p></div></div>
+
     <div id="outWrap" hidden>
-      <div id="qrBox"></div>
+      <div id="qrWrap"><canvas id="qrCanvas" width="236" height="236"></canvas></div>
       <p class="qr-note" id="qrNote"></p>
-      <div class="codewrap">
-        <label>Ose kopjo kodin dhe dërgoja me dorë:</label>
-        <textarea class="code" id="codeText" readonly></textarea>
-        <button class="btn-ghost" id="copyCode" style="margin-top:8px">Kopjo kodin</button>
-      </div>
+      <div class="codewrap"><label>Ose kopjo kodin dhe dërgoja me dorë:</label><textarea class="code" id="codeText" readonly></textarea><button class="btn-ghost" id="copyCode" style="margin-top:8px">Kopjo kodin</button></div>
+      <button class="btn-primary" id="outScanNext" hidden style="margin-top:12px">Skano kodin e host-it →</button>
       <button class="btn-primary" id="outDone" hidden style="margin-top:12px">Hyr në bisedë →</button>
     </div>
 
@@ -311,11 +279,7 @@
       <div class="scan-frame"><video id="scanVideo" playsinline muted></video></div>
       <canvas id="scanCanvas"></canvas>
       <p class="scan-hint" id="scanHint">Drejto kamerën nga kodi QR i personit tjetër.</p>
-      <div class="codewrap">
-        <label>Ose ngjit kodin këtu:</label>
-        <textarea class="inp" id="pasteCode" placeholder="Ngjit kodin M1…"></textarea>
-        <button class="btn-primary" id="pasteBtn">Përdor kodin</button>
-      </div>
+      <div class="codewrap"><label>Ose ngjit kodin këtu:</label><textarea class="inp" id="pasteCode" placeholder="Ngjit kodin M1…"></textarea><button class="btn-primary" id="pasteBtn">Përdor kodin</button></div>
     </div>
 
     <p class="sig-msg" id="sigMsg"></p>
@@ -340,17 +304,17 @@
       <div class="fact"><p class="t"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/></svg>Emër i përkohshëm</p><p>Emër i rastësishëm (p.sh. <code>gur-qift-42</code>). Pa email, pa numër, pa hyrje.</p></div>
       <div class="fact"><p class="t"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M8 6V4h8v2m-9 0 1 14h8l1-14"/></svg>Asgjë nuk ruhet</p><p>Mesazhet vetëm në memorie. Rifreskim ose <b>Fshij</b> → zhduken. Asgjë në disk.</p></div>
     </div>
-    <div class="note warn"><span class="h">Kushti i vetëm fizik</span>Telefonat duhet të ndajnë një Wi-Fi/hotspot lokal — kjo s'kërkon internet, por kërkon që të jeni afër, në të njëjtin rrjet. Bluetooth i pastër mes telefonave s'bëhet dot në web.</div>
+    <div class="note warn"><span class="h">Kushti i vetëm fizik</span>Telefonat duhet të ndajnë një Wi-Fi/hotspot lokal — kjo s'kërkon internet, por kërkon që të jeni afër, në të njëjtin rrjet.</div>
 
     <p class="eyebrow">Hap pas hapi</p>
     <h2>Si ta përdorësh</h2>
     <ol class="steps">
-      <li><h3>Krijoni një Wi-Fi lokal</h3><p>Njëri ndez hotspot-in me <b>të dhënat celulare të fikura</b> (zero internet). Të tjerët lidhen në atë hotspot. Ose përdorni një Wi-Fi vendi.</p></li>
-      <li><h3>Një person zgjedh “Krijo dhomën (host)”</h3><p>Host-i është qendra përmes së cilës kalojnë mesazhet.</p></li>
-      <li><h3>Të tjerët zgjedhin “Bashkohu”</h3><p>Pjesëtari shfaq kodin e tij QR → host-i e skanon → host-i shfaq një kod → pjesëtari e skanon. Lidhja hapet.</p></li>
-      <li><h3>Shtoni gjithsecilin një e nga një</h3><p>Host-i shtyp “Shto” për çdo person të ri. Për 8 veta, host-i bën 7 çiftime.</p></li>
-      <li><h3>Kontrolloni numrin e pranishëm</h3><p>Lart djathtas shihet numri. Duhet të përputhet me sa veta e dini që jeni.</p></li>
-      <li><h3>Nëse diçka shkon keq — <span style="color:var(--danger)">Fshij</span></h3><p>Pastron gjithçka dhe të jep identitet të ri.</p></li>
+      <li><h3>Krijoni një Wi-Fi lokal</h3><p>Njëri ndez hotspot-in me <b>të dhënat celulare të fikura</b> (zero internet). Të tjerët lidhen në atë hotspot.</p></li>
+      <li><h3>Një person: “Krijo dhomën (host)”</h3><p>Host-i është qendra përmes së cilës kalojnë mesazhet.</p></li>
+      <li><h3>Të tjerët: “Bashkohu”</h3><p>Pjesëtari shfaq kodin QR → host-i e skanon → host-i shfaq një kod → pjesëtari e skanon. Lidhja hapet vetë.</p></li>
+      <li><h3>Shtoni gjithsecilin një e nga një</h3><p>Host-i shtyp “Shto” për çdo person të ri.</p></li>
+      <li><h3>Kontrolloni numrin</h3><p>Lart djathtas shihet numri i pranishëm. Duhet të përputhet me sa veta jeni.</p></li>
+      <li><h3>Diçka keq → <span style="color:var(--danger)">Fshij</span></h3><p>Pastron gjithçka dhe të jep identitet të ri.</p></li>
     </ol>
 
     <p class="eyebrow">Rregulli i artë</p>
@@ -375,14 +339,7 @@
       <p class="qbig">Përgjigjja e ndershme: aplikacioni nuk mund të ta thotë.</p>
       <p>Në një sistem anonim, i 9-ti duket saktësisht si çdokush tjetër. Mund të jetë një shok që dikush e solli, dikush që mori kodin pa leje, ose dikush që s'duhej të ishte aty. Prandaj NeJoAta <b>nuk ka “zbulues policësh”</b>: do të tregonte me gisht njerëz rastësisht dhe në protestë kjo rrezikon një të pafajshëm.</p>
     </div>
-    <div class="note danger"><span class="h">Çfarë të BËSH kur numri s'përputhet</span>
-      <ul class="clean" style="margin:6px 0 0">
-        <li><b>Mos akuzo askënd.</b> Një gabim dëmton një të pafajshëm.</li>
-        <li><b>Ndalo bisedat e ndjeshme.</b> Silluni sikur lexohet nga një i huaj.</li>
-        <li><b>Pyesni në person:</b> “kë solli dikush?”</li>
-        <li><b>Nëse mbetet i panjohur — shtypni Fshij dhe rinisni dhomën</b> vetëm me ata që njiheni.</li>
-      </ul>
-    </div>
+    <div class="note danger"><span class="h">Çfarë të BËSH kur numri s'përputhet</span><ul class="clean" style="margin:6px 0 0"><li><b>Mos akuzo askënd.</b> Një gabim dëmton një të pafajshëm.</li><li><b>Ndalo bisedat e ndjeshme.</b> Silluni sikur lexohet nga një i huaj.</li><li><b>Pyesni në person:</b> “kë solli dikush?”</li><li><b>Nëse mbetet i panjohur — Fshij dhe rinisni</b> vetëm me ata që njiheni.</li></ul></div>
     <p style="font-size:14.5px"><b>Numrin përdoreni si alarm, jo si gjykatë.</b> 9 kur jeni 8 do të thotë “ndalo dhe sqaroje”, jo “ja polici”.</p>
 
     <hr class="divider">
@@ -399,9 +356,9 @@
   </div>
 </div>
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jsQR/1.4.0/jsQR.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/pako/2.1.0/pako.min.js"></script>
+<script src="lib/pako.min.js"></script>
+<script src="lib/jsQR.js"></script>
+<script src="lib/qrcode.min.js"></script>
 <script src="app.js"></script>
 </body>
 </html>
