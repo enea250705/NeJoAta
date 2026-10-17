@@ -584,8 +584,131 @@
     repClear().then(function(){ renderReports(); updateReportsCount(); });
   });
 
+  /* ---------- Listat e personalizuara (server ose lokal) ---------- */
+  var LKEY="nja_lists_v1", curList=null, lDelArmed=false;
+  function lsGet(){ try{ return JSON.parse(localStorage.getItem(LKEY)||"[]"); }catch(e){ return []; } }
+  function lsSet(a){ try{ localStorage.setItem(LKEY, JSON.stringify(a)); }catch(e){} }
+
+  function listsAll(){
+    if(SERVER) return SB.from("lists").select("id,name,columns,created_at").order("created_at",{ascending:true}).then(function(r){ if(r.error)throw r.error; return r.data||[]; });
+    return Promise.resolve(lsGet());
+  }
+  function listCreate(name, cols){
+    if(SERVER) return SB.from("lists").insert({name:name,columns:cols}).select().then(function(r){ if(r.error)throw r.error; return r.data[0]; });
+    var l={id:"l"+Date.now(),name:name,columns:cols,rows:[]}; var a=lsGet(); a.push(l); lsSet(a); return Promise.resolve(l);
+  }
+  function listGet(id){
+    if(SERVER) return SB.from("lists").select("*").eq("id",id).single().then(function(r){ if(r.error)throw r.error; return r.data; });
+    return Promise.resolve(lsGet().filter(function(x){return x.id===id;})[0]);
+  }
+  function listRows(id){
+    if(SERVER) return SB.from("list_rows").select("id,data,created_at").eq("list_id",id).order("created_at",{ascending:true}).then(function(r){ if(r.error)throw r.error; return r.data||[]; });
+    var l=lsGet().filter(function(x){return x.id===id;})[0]; return Promise.resolve(((l&&l.rows)||[]).map(function(rw,i){return {id:"i"+i,data:rw};}));
+  }
+  function rowAdd(listId, dataArr){
+    if(SERVER) return SB.from("list_rows").insert({list_id:listId,data:dataArr}).then(function(r){ if(r.error)throw r.error; });
+    var a=lsGet(); a.forEach(function(l){ if(l.id===listId){ l.rows=l.rows||[]; l.rows.push(dataArr); } }); lsSet(a); return Promise.resolve();
+  }
+  function rowDel(listId, rowId){
+    if(SERVER) return SB.from("list_rows").delete().eq("id",rowId).then(function(r){ if(r.error)throw r.error; });
+    var a=lsGet(); a.forEach(function(l){ if(l.id===listId){ var idx=parseInt(rowId.slice(1),10); if(l.rows&&idx>=0)l.rows.splice(idx,1); } }); lsSet(a); return Promise.resolve();
+  }
+  function listDel(id){
+    if(SERVER) return SB.from("lists").delete().eq("id",id).then(function(r){ if(r.error)throw r.error; });
+    lsSet(lsGet().filter(function(x){return x.id!==id;})); return Promise.resolve();
+  }
+
+  function renderMyLists(){
+    var box=$("myLists"); if(!box)return; box.innerHTML="";
+    listsAll().then(function(lists){
+      lists.forEach(function(l){
+        var cols=l.columns||[];
+        var b=document.createElement("button"); b.className="list-btn";
+        b.innerHTML='<span class="li">'+esc((l.name||"?").trim().slice(0,1).toUpperCase())+'</span>'+
+          '<span class="lt"><b>'+esc(l.name||"Listë")+'</b><span>'+cols.length+(cols.length===1?" kolonë":" kolona")+'</span></span>'+
+          '<svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>';
+        b.addEventListener("click", function(){ openListView(l.id); });
+        box.appendChild(b);
+      });
+    }).catch(function(){});
+  }
+
+  // Ndërtuesi
+  function addColInput(val){
+    var row=document.createElement("div"); row.className="col-row";
+    var inp=document.createElement("input"); inp.type="text"; inp.placeholder="Emri i kolonës (p.sh. Emri, Data, Vendi)"; inp.maxLength=40; if(val)inp.value=val;
+    var rm=document.createElement("button"); rm.className="rm"; rm.type="button"; rm.textContent="×";
+    rm.addEventListener("click", function(){ if($("lbCols").children.length>1) row.remove(); });
+    row.appendChild(inp); row.appendChild(rm); $("lbCols").appendChild(row);
+  }
+  function openBuilder(){ $("lbName").value=""; $("lbCols").innerHTML=""; addColInput(""); addColInput(""); $("listBuilder").hidden=false; }
+
+  // Pamja e listës
+  function openListView(id){
+    curList=null; $("listView").hidden=false; $("lvTitle").textContent="Po ngarkohet…"; $("lvAddRow").innerHTML=""; $("lvTable").innerHTML=""; lDelArmed=false; $("lvDelList").textContent="Fshi këtë listë";
+    listGet(id).then(function(l){
+      if(!l){ $("lvTitle").textContent="Nuk u gjet"; return; }
+      curList=l; $("lvTitle").textContent=l.name||"Listë";
+      renderAddRow(l); reloadRows(l);
+    }).catch(function(){ $("lvTitle").textContent="S'u hap dot"; });
+  }
+  function renderAddRow(l){
+    var box=$("lvAddRow"); box.innerHTML="";
+    (l.columns||[]).forEach(function(c,i){
+      var lab=document.createElement("label"); lab.textContent=c; box.appendChild(lab);
+      var inp=document.createElement("input"); inp.type="text"; inp.setAttribute("data-ci",i); box.appendChild(inp);
+    });
+    var btn=document.createElement("button"); btn.className="btn-primary"; btn.textContent="Shto rresht";
+    btn.addEventListener("click", function(){
+      var inps=box.querySelectorAll("input[data-ci]"); var arr=[]; inps.forEach(function(x){ arr.push(x.value.trim()); });
+      if(arr.join("")==="")return;
+      btn.disabled=true;
+      rowAdd(curList.id, arr).then(function(){ inps.forEach(function(x){x.value="";}); btn.disabled=false; reloadRows(curList); }).catch(function(){ btn.disabled=false; });
+    });
+    box.appendChild(btn);
+  }
+  function reloadRows(l){
+    var t=$("lvTable");
+    listRows(l.id).then(function(rows){
+      var cols=l.columns||[];
+      var head="<thead><tr>"+cols.map(function(c){return "<th>"+esc(c)+"</th>";}).join("")+"<th></th></tr></thead>";
+      var body="<tbody>";
+      if(!rows.length){ body+='<tr><td class="tbl-empty" colspan="'+(cols.length+1)+'">Ende s\'ka rreshta. Shtoje të parin lart.</td></tr>'; }
+      else rows.forEach(function(rw){
+        var d=rw.data||[];
+        var cells=cols.map(function(c,i){ return "<td>"+esc(d[i]!=null?String(d[i]):"")+"</td>"; }).join("");
+        body+='<tr>'+cells+'<td class="del-c"><button class="rowdel" data-id="'+esc(rw.id)+'">✕</button></td></tr>';
+      });
+      body+="</tbody>";
+      t.innerHTML=head+body;
+      t.querySelectorAll(".rowdel").forEach(function(btn){ btn.addEventListener("click", function(){ rowDel(l.id, btn.getAttribute("data-id")).then(function(){ reloadRows(l); }).catch(function(){}); }); });
+    }).catch(function(){ t.innerHTML='<tbody><tr><td class="tbl-empty">S\'u ngarkuan dot rreshtat.</td></tr></tbody>'; });
+  }
+
+  $("createListBtn").addEventListener("click", openBuilder);
+  $("lbClose").addEventListener("click", function(){ $("listBuilder").hidden=true; });
+  $("lbBack").addEventListener("click", function(){ $("listBuilder").hidden=true; });
+  $("lbAddCol").addEventListener("click", function(){ addColInput(""); });
+  $("lbCreate").addEventListener("click", function(){
+    var name=$("lbName").value.trim();
+    var cols=[]; $("lbCols").querySelectorAll("input").forEach(function(x){ var v=x.value.trim(); if(v)cols.push(v); });
+    if(!name){ $("lbName").focus(); return; }
+    if(!cols.length){ return; }
+    $("lbCreate").disabled=true; $("lbCreate").textContent="Po krijohet…";
+    listCreate(name, cols).then(function(l){ $("lbCreate").disabled=false; $("lbCreate").textContent="Krijo listën"; $("listBuilder").hidden=true; renderMyLists(); openListView(l.id); })
+      .catch(function(){ $("lbCreate").disabled=false; $("lbCreate").textContent="Krijo listën"; $("lbName").insertAdjacentHTML("afterend",''); });
+  });
+  $("lvClose").addEventListener("click", function(){ $("listView").hidden=true; });
+  $("lvBack").addEventListener("click", function(){ $("listView").hidden=true; });
+  $("lvDelList").addEventListener("click", function(){
+    if(!curList)return;
+    if(!lDelArmed){ lDelArmed=true; this.textContent="Shtyp sërish për të fshirë listën"; return; }
+    listDel(curList.id).then(function(){ $("listView").hidden=true; renderMyLists(); }).catch(function(){});
+  });
+
   if("serviceWorker" in navigator){ window.addEventListener("load", function(){ navigator.serviceWorker.register("./sw.js").catch(function(){}); }); }
   updateReportsCount();
+  renderMyLists();
 
   /* ---------- nxit instalimin si PWA (vetëm kur hapet nga shfletuesi) ---------- */
   (function installPrompt(){

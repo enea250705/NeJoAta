@@ -51,6 +51,39 @@ create policy "videos_read_public"
   to anon, authenticated
   using (bucket_id = 'videos');
 
+-- 3) Listat e personalizuara (të përbashkëta, online)
+create table if not exists public.lists (
+  id         uuid primary key default gen_random_uuid(),
+  created_at timestamptz not null default now(),
+  name       text not null,
+  columns    jsonb not null default '[]'::jsonb
+);
+create table if not exists public.list_rows (
+  id         uuid primary key default gen_random_uuid(),
+  created_at timestamptz not null default now(),
+  list_id    uuid not null references public.lists(id) on delete cascade,
+  data       jsonb not null default '[]'::jsonb
+);
+
+alter table public.lists enable row level security;
+alter table public.list_rows enable row level security;
+
+drop policy if exists "lists_select_public" on public.lists;
+create policy "lists_select_public" on public.lists for select to anon, authenticated using (true);
+drop policy if exists "lists_insert_anon" on public.lists;
+create policy "lists_insert_anon" on public.lists for insert to anon, authenticated with check (true);
+drop policy if exists "lists_delete_anon" on public.lists;
+create policy "lists_delete_anon" on public.lists for delete to anon, authenticated using (true);
+
+drop policy if exists "rows_select_public" on public.list_rows;
+create policy "rows_select_public" on public.list_rows for select to anon, authenticated using (true);
+drop policy if exists "rows_insert_anon" on public.list_rows;
+create policy "rows_insert_anon" on public.list_rows for insert to anon, authenticated with check (true);
+drop policy if exists "rows_delete_anon" on public.list_rows;
+create policy "rows_delete_anon" on public.list_rows for delete to anon, authenticated using (true);
+-- Shënim: fshirja është e hapur për këdo (pa llogari). Nëse do ta mbyllësh,
+-- hiq politikat "..._delete_anon" dhe fshirjen bëje vetëm nga dashboard-i.
+
 -- ============================================================
 -- SIGURIA — lexoje:
 -- • anon key vendoset në app (normale, mbrohet nga RLS). service_role NUK vihet kurrë.
