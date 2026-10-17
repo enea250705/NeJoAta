@@ -593,14 +593,14 @@
     if(SERVER) return SB.from("lists").select("id,name,columns,created_at").order("created_at",{ascending:true}).then(function(r){ if(r.error)throw r.error; return r.data||[]; });
     return Promise.resolve(lsGet());
   }
-  function listCreate(name, cols, photoEnabled){
-    var enabled = !!photoEnabled;
-    if(SERVER) return SB.from("lists").insert({name:name,columns:cols,photo_enabled:enabled}).select().then(function(r){ if(r.error)throw r.error; return r.data[0]; });
-    var l={id:"l"+Date.now(),name:name,columns:cols,photo_enabled:enabled,rows:[]}; var a=lsGet(); a.push(l); lsSet(a); return Promise.resolve(l);
+  function listCreate(name, cols, photoIndex){
+    var idx = Number(photoIndex); if(!isFinite(idx) || idx < 0) idx = null;
+    if(SERVER) return SB.from("lists").insert({name:name,columns:cols,photo_index:idx}).select().then(function(r){ if(r.error)throw r.error; return r.data[0]; });
+    var l={id:"l"+Date.now(),name:name,columns:cols,photo_index:idx,rows:[]}; var a=lsGet(); a.push(l); lsSet(a); return Promise.resolve(l);
   }
   function listGet(id){
-    if(SERVER) return SB.from("lists").select("*").eq("id",id).single().then(function(r){ if(r.error)throw r.error; return r.data ? Object.assign({}, r.data, {photo_enabled: !!(r.data.photo_enabled || r.data.photoEnabled)}) : r.data; });
-    var found = lsGet().filter(function(x){return x.id===id;})[0]; return Promise.resolve(found ? Object.assign({}, found, {photo_enabled: !!(found.photo_enabled || found.photoEnabled)}) : found);
+    if(SERVER) return SB.from("lists").select("*").eq("id",id).single().then(function(r){ if(r.error)throw r.error; return r.data ? Object.assign({}, r.data, {photo_index: (r.data.photo_index !== undefined && r.data.photo_index !== null) ? Number(r.data.photo_index) : null}) : r.data; });
+    var found = lsGet().filter(function(x){return x.id===id;})[0]; return Promise.resolve(found ? Object.assign({}, found, {photo_index: (found.photo_index !== undefined && found.photo_index !== null) ? Number(found.photo_index) : null}) : found);
   }
   function listRows(id){
     if(SERVER) return SB.from("list_rows").select("id,data,created_at").eq("list_id",id).order("created_at",{ascending:true}).then(function(r){ if(r.error)throw r.error; return r.data||[]; });
@@ -645,7 +645,7 @@
     listsAll().then(function(lists){
       lists.forEach(function(l){
         var cols=l.columns||[];
-        var photoTag=(l.photo_enabled||l.photoEnabled)?' <span class="mini-tag">foto</span>':'';
+        var photoTag=(l.photo_index !== undefined && l.photo_index !== null && l.photo_index >= 0)?' <span class="mini-tag">foto</span>':'';
         var b=document.createElement("button"); b.className="list-btn";
         b.innerHTML='<span class="li">'+esc((l.name||"?").trim().slice(0,1).toUpperCase())+'</span>'+
           '<span class="lt"><b>'+esc(l.name||"Listë")+'</b><span>'+cols.length+(cols.length===1?" kolonë":" kolona")+photoTag+'</span></span>'+
@@ -657,14 +657,15 @@
   }
 
   // Ndërtuesi
-  function addColInput(val){
+  function addColInput(val, photoIndex){
     var row=document.createElement("div"); row.className="col-row";
     var inp=document.createElement("input"); inp.type="text"; inp.placeholder="Emri i kolonës (p.sh. Emri, Data, Vendi)"; inp.maxLength=40; if(val)inp.value=val;
+    var photoFlag=document.createElement("label"); photoFlag.className="photo-flag"; photoFlag.innerHTML='<input type="checkbox" class="photo-switch"'+((photoIndex!==undefined&&photoIndex!==null)?' checked':'')+'> <span>Foto</span>';
     var rm=document.createElement("button"); rm.className="rm"; rm.type="button"; rm.textContent="×";
     rm.addEventListener("click", function(){ if($("lbCols").children.length>1) row.remove(); });
-    row.appendChild(inp); row.appendChild(rm); $("lbCols").appendChild(row);
+    row.appendChild(inp); row.appendChild(photoFlag); row.appendChild(rm); $("lbCols").appendChild(row);
   }
-  function openBuilder(){ $("lbName").value=""; $("lbCols").innerHTML=""; $("lbPhotoToggle").checked=false; addColInput(""); addColInput(""); $("listBuilder").hidden=false; }
+  function openBuilder(){ $("lbName").value=""; $("lbCols").innerHTML=""; addColInput(""); addColInput(""); $("listBuilder").hidden=false; }
 
   // Pamja e listës
   function openListView(id){
@@ -678,12 +679,12 @@
   }
   function renderAddRow(l){
     var box=$("lvAddRow"); box.innerHTML="";
-    var hasPhoto = !!(l.photo_enabled !== undefined ? l.photo_enabled : l.photoEnabled);
+    var photoIndex = Number(l.photo_index !== undefined && l.photo_index !== null ? l.photo_index : -1);
     (l.columns||[]).forEach(function(c,i){
       var lab=document.createElement("label"); lab.textContent=c; box.appendChild(lab);
       var inp=document.createElement("input"); inp.type="text"; inp.setAttribute("data-ci",i); box.appendChild(inp);
     });
-    if(hasPhoto){
+    if(photoIndex >= 0){
       var photoLabel=document.createElement("label"); photoLabel.textContent="Foto (opsional)"; box.appendChild(photoLabel);
       var photoInput=document.createElement("input"); photoInput.type="file"; photoInput.accept="image/*"; photoInput.capture="environment"; photoInput.setAttribute("data-photo","1"); box.appendChild(photoInput);
     }
@@ -692,19 +693,29 @@
       var inps=box.querySelectorAll("input[data-ci]"); var arr=[]; inps.forEach(function(x){ arr.push(x.value.trim()); });
       var photoInput=box.querySelector("input[data-photo]");
       function commit(arr){
-        if(arr.join("")==="" && !(photoInput && photoInput.files && photoInput.files.length)) return;
+        if(arr.every(function(v){ return !(v && String(v).trim()); }) && !(photoInput && photoInput.files && photoInput.files.length)) return;
         btn.disabled=true;
         rowAdd(curList.id, arr).then(function(){ inps.forEach(function(x){x.value="";}); if(photoInput){photoInput.value="";} btn.disabled=false; reloadRows(curList); }).catch(function(){ btn.disabled=false; });
       }
       if(photoInput && photoInput.files && photoInput.files.length){
         var file=photoInput.files[0];
         var reader=new FileReader();
-        reader.onload=function(){ arr.push(reader.result); commit(arr); };
-        reader.onerror=function(){ arr.push(""); commit(arr); };
+        reader.onload=function(){
+          if(photoIndex >= 0){
+            arr.splice(photoIndex, 0, String(reader.result));
+          } else {
+            arr.push(String(reader.result));
+          }
+          commit(arr);
+        };
+        reader.onerror=function(){
+          if(photoIndex >= 0){ arr.splice(photoIndex, 0, ""); } else { arr.push(""); }
+          commit(arr);
+        };
         reader.readAsDataURL(file);
         return;
       }
-      if(hasPhoto){ arr.push(""); }
+      if(photoIndex >= 0){ arr.splice(photoIndex, 0, ""); }
       commit(arr);
     });
     box.appendChild(btn);
@@ -713,19 +724,29 @@
     var t=$("lvTable");
     listRows(l.id).then(function(rows){
       var cols=l.columns||[];
-      var hasPhoto = !!(l.photo_enabled !== undefined ? l.photo_enabled : l.photoEnabled);
-      var headCols = cols.slice(); if(hasPhoto) headCols.push("Foto");
+      var photoIndex = Number(l.photo_index !== undefined && l.photo_index !== null ? l.photo_index : -1);
+      var headCols = cols.slice();
+      if(photoIndex >= 0){ headCols.splice(photoIndex, 0, "Foto"); }
       var head="<thead><tr>"+headCols.map(function(c){return "<th>"+esc(c)+"</th>";}).join("")+"<th></th></tr></thead>";
       var body="<tbody>";
       if(!rows.length){ body+='<tr><td class="tbl-empty" colspan="'+(headCols.length+1)+'">Ende s\'ka rreshta. Shtoje të parin lart.</td></tr>'; }
       else rows.forEach(function(rw){
         var d=rw.data||[];
-        var cells=headCols.slice(0, cols.length).map(function(c,i){ return "<td>"+esc(d[i]!=null?String(d[i]):"")+"</td>"; }).join("");
-        if(hasPhoto){
-          var photo = d[cols.length];
-          cells += photo ? '<td><img class="list-thumb" src="'+esc(photo)+'" alt="Foto"></td>' : '<td class="tbl-empty">—</td>';
+        var cells=[];
+        for(var i=0;i<cols.length;i++){
+          var actualIndex = i + (photoIndex >= 0 && i >= photoIndex ? 1 : 0);
+          var val=(d[actualIndex]!=null?String(d[actualIndex]):"");
+          cells.push("<td>"+esc(val)+"</td>");
         }
-        body+='<tr>'+cells+'<td class="del-c"><button class="rowdel" data-id="'+esc(rw.id)+'">✕</button></td></tr>';
+        if(photoIndex >= 0){
+          var photo = d[photoIndex] || "";
+          if(photo && /^data:image\//i.test(photo)){
+            cells.splice(photoIndex, 0, '<td><img class="list-thumb" src="'+esc(photo)+'" alt="Foto"></td>');
+          } else {
+            cells.splice(photoIndex, 0, '<td class="tbl-empty">—</td>');
+          }
+        }
+        body+='<tr>' + cells.join("") + '<td class="del-c"><button class="rowdel" data-id="'+esc(rw.id)+'">✕</button></td></tr>';
       });
       body+="</tbody>";
       t.innerHTML=head+body;
@@ -739,12 +760,17 @@
   $("lbAddCol").addEventListener("click", function(){ addColInput(""); });
   $("lbCreate").addEventListener("click", function(){
     var name=$("lbName").value.trim();
-    var cols=[]; $("lbCols").querySelectorAll("input").forEach(function(x){ var v=x.value.trim(); if(v)cols.push(v); });
-    var photoEnabled=$("lbPhotoToggle").checked;
+    var cols=[]; var photoIndex=-1;
+    $("lbCols").querySelectorAll(".col-row").forEach(function(row, idx){
+      var input=row.querySelector("input[type='text']");
+      var v=input && input.value.trim();
+      if(v) cols.push(v);
+      if(row.querySelector(".photo-switch") && row.querySelector(".photo-switch").checked){ photoIndex = cols.length - 1; }
+    });
     if(!name){ $("lbName").focus(); return; }
     if(!cols.length){ return; }
     $("lbCreate").disabled=true; $("lbCreate").textContent="Po krijohet…";
-    listCreate(name, cols, photoEnabled).then(function(l){ $("lbCreate").disabled=false; $("lbCreate").textContent="Krijo listën"; $("listBuilder").hidden=true; renderMyLists(); openListView(l.id); })
+    listCreate(name, cols, photoIndex).then(function(l){ $("lbCreate").disabled=false; $("lbCreate").textContent="Krijo listën"; $("listBuilder").hidden=true; renderMyLists(); openListView(l.id); })
       .catch(function(){ $("lbCreate").disabled=false; $("lbCreate").textContent="Krijo listën"; $("lbName").insertAdjacentHTML("afterend",''); });
   });
   $("lvClose").addEventListener("click", function(){ unsubscribeRows(); $("listView").hidden=true; });

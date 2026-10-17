@@ -57,9 +57,9 @@ create table if not exists public.lists (
   created_at    timestamptz not null default now(),
   name          text not null,
   columns       jsonb not null default '[]'::jsonb,
-  photo_enabled boolean not null default false
+  photo_index   integer null
 );
-alter table public.lists add column if not exists photo_enabled boolean not null default false;
+alter table public.lists add column if not exists photo_index integer null;
 
 create table if not exists public.list_rows (
   id         uuid primary key default gen_random_uuid(),
