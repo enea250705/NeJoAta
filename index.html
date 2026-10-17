@@ -139,6 +139,40 @@
   .install .idismiss{background:transparent;border:1px solid var(--line);color:var(--fg-dim);border-radius:var(--radius-sm);padding:10px 14px;font:inherit;font-size:13px;cursor:pointer;}
   .install kbd{font-family:var(--mono);font-size:.9em;background:var(--surface);border:1px solid var(--line);border-radius:4px;padding:0 5px;}
 
+  /* ===== SOS / alarm rreziku ===== */
+  .iconbtn.sos{border-color:color-mix(in srgb,var(--warn-fg) 40%,var(--line));color:var(--warn-fg);background:var(--warn-bg);font-weight:700;}
+  .iconbtn.sos:hover{border-color:var(--warn-fg);}
+  .sos-alert{position:sticky;top:calc(env(safe-area-inset-top,0px));z-index:25;background:var(--danger);color:#fff;
+    display:flex;align-items:center;gap:11px;padding:12px max(14px,env(safe-area-inset-left,0)) 12px max(14px,env(safe-area-inset-right,0));box-shadow:0 2px 10px rgba(0,0,0,.25);}
+  .sos-alert svg{width:22px;height:22px;flex:none;}
+  .sos-alert .txt{flex:1;min-width:0;}
+  .sos-alert .txt b{display:block;font-size:14.5px;font-weight:700;}
+  .sos-alert .txt span{font-size:12px;opacity:.9;}
+  .sos-alert button{background:rgba(255,255,255,.2);border:1px solid rgba(255,255,255,.4);color:#fff;border-radius:8px;padding:6px 11px;font:inherit;font-size:12.5px;font-weight:600;cursor:pointer;}
+  @media (prefers-reduced-motion:no-preference){.sos-alert{animation:sosflash 1.1s ease-in-out infinite;}@keyframes sosflash{0%,100%{box-shadow:0 2px 10px rgba(0,0,0,.25);}50%{box-shadow:0 0 0 3px color-mix(in srgb,var(--danger) 55%,transparent),0 2px 10px rgba(0,0,0,.25);}}}
+
+  #sosView .panel{max-width:400px;}
+  .sos-hero{text-align:center;margin-bottom:18px;}
+  .sos-hero .ring{width:72px;height:72px;border-radius:50%;background:var(--danger-bg);border:2px solid var(--danger-line);display:flex;align-items:center;justify-content:center;margin:0 auto 14px;}
+  .sos-hero .ring svg{width:34px;height:34px;color:var(--danger);}
+  .sos-hero h1{font-family:var(--serif);font-size:24px;margin:0 0 6px;letter-spacing:-.3px;}
+  .sos-hero p{color:var(--fg-dim);font-size:13.5px;margin:0;line-height:1.5;}
+  .btn-danger{width:100%;background:var(--danger);color:#fff;border:none;border-radius:var(--radius-sm);padding:16px;font:inherit;font-weight:700;font-size:16px;cursor:pointer;letter-spacing:.3px;}
+  .btn-danger:active{transform:scale(.99);}
+  .shake-row{display:flex;align-items:center;gap:11px;background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:13px 15px;margin-top:12px;box-shadow:var(--shadow);}
+  .shake-row .sinfo{flex:1;min-width:0;}
+  .shake-row .sinfo b{font-size:13.5px;font-weight:600;display:block;}
+  .shake-row .sinfo span{font-size:11.5px;color:var(--fg-dim);}
+  .toggle{position:relative;width:46px;height:27px;flex:none;border:none;border-radius:999px;background:var(--surface-3);cursor:pointer;transition:background .2s;}
+  .toggle::after{content:"";position:absolute;top:3px;left:3px;width:21px;height:21px;border-radius:50%;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.3);transition:transform .2s;}
+  .toggle[aria-pressed="true"]{background:var(--accent);}
+  .toggle[aria-pressed="true"]::after{transform:translateX(19px);}
+
+  #sosCountdown{position:fixed;inset:0;z-index:70;background:color-mix(in srgb,var(--danger) 92%,#000);color:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:24px;}
+  #sosCountdown .num{font-family:var(--serif);font-size:84px;font-weight:600;line-height:1;margin:0 0 6px;font-variant-numeric:tabular-nums;}
+  #sosCountdown p{font-size:16px;margin:0 0 30px;max-width:22ch;}
+  #sosCountdown .cancel{background:#fff;color:var(--danger);border:none;border-radius:12px;padding:16px 28px;font:inherit;font-weight:700;font-size:17px;cursor:pointer;}
+
   .choice{width:100%;text-align:left;background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:16px 17px;margin-bottom:12px;cursor:pointer;display:flex;gap:13px;align-items:flex-start;box-shadow:var(--shadow);transition:border-color .15s,transform .1s;}
   .choice:hover{border-color:var(--accent);}
   .choice:active{transform:scale(.995);}
@@ -256,7 +290,13 @@
     <span class="status"><span class="dot" id="statusDot"></span><span id="peerCount">1</span></span>
     <button class="iconbtn" id="addPeerBtn" title="Shto një pjesëtar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M19 8v6M22 11h-6"/></svg><span class="lbl">Shto</span></button>
     <button class="iconbtn" id="guideBtn" title="Udhëzuesi"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg><span class="lbl">Udhëzuesi</span></button>
+    <button class="iconbtn sos" id="sosBtn" title="Alarm rreziku"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.3 3.3 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.3a2 2 0 0 0-3.4 0z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg><span class="lbl">SOS</span></button>
     <button class="iconbtn panic" id="panicBtn" title="Fshij gjithçka"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M8 6V4h8v2m-1 0 .5 14h-7L7 6"/></svg><span class="lbl">Fshij</span></button>
+  </div>
+  <div class="sos-alert" id="sosAlert" hidden>
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.3 3.3 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.3a2 2 0 0 0-3.4 0z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>
+    <div class="txt"><b id="sosAlertName">Dikush është në rrezik</b><span id="sosAlertTime"></span></div>
+    <button id="sosAlertClose">Mbyll</button>
   </div>
   <div class="scroll" id="scroll" aria-live="polite"></div>
   <form class="composer" id="composer">
@@ -297,7 +337,7 @@
     <div class="warn"><strong>Si funksionon.</strong> Lidhuni të gjithë në të njëjtin Wi-Fi ose hotspot (me të dhënat celulare <b>të fikura</b> → zero internet). Një person bëhet <b>host</b>; të tjerët <b>bashkohen</b> duke skanuar një kod QR. Pa server, pa llogari, asgjë e ruajtur.</div>
     <button class="btn-primary" id="startBtn">Fillo</button>
     <button class="btn-ghost" id="learnBtn">Udhëzuesi: si funksionon &amp; siguria</button>
-    <p class="foot">Instaloje në home screen për ta hapur si app. Pas instalimit të parë, punon pa internet.<br><span style="opacity:.7">versioni 5</span></p>
+    <p class="foot">Instaloje në home screen për ta hapur si app. Pas instalimit të parë, punon pa internet.<br><span style="opacity:.7">versioni 6</span></p>
   </div>
 </div>
 
@@ -351,6 +391,31 @@
     <p class="sig-msg" id="sigMsg"></p>
     <button class="backlink" id="sigBack">← Mbrapa</button>
   </div>
+</div>
+
+<!-- ===== SOS: DËRGO ALARM ===== -->
+<div class="overlay" id="sosView" hidden style="z-index:55">
+  <div class="panel">
+    <div class="sos-hero">
+      <div class="ring"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.3 3.3 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.3a2 2 0 0 0-3.4 0z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg></div>
+      <h1>Alarm rreziku</h1>
+      <p>Dërgo një sinjal te të gjithë në grup se je në rrezik. Përdore vetëm për vete.</p>
+    </div>
+    <button class="btn-danger" id="sosSend">DËRGO ALARM TANI</button>
+    <div class="shake-row">
+      <div class="sinfo"><b>Alarm me tundje</b><span>Tund fort telefonin për ta nisur (me numërim 5s + anulim).</span></div>
+      <button class="toggle" id="shakeToggle" role="switch" aria-pressed="false" aria-label="Aktivizo alarmin me tundje"></button>
+    </div>
+    <p class="hint" id="shakeHint" style="text-align:center;margin-top:10px"></p>
+    <button class="backlink" id="sosBack">← Mbrapa</button>
+  </div>
+</div>
+
+<!-- ===== SOS: NUMËRIM MBRAPSHT ===== -->
+<div id="sosCountdown" hidden>
+  <p class="num" id="sosNum">5</p>
+  <p>Po dërgohet alarmi te grupi…</p>
+  <button class="cancel" id="sosCancel">Jam mirë — Anulo</button>
 </div>
 
 <!-- ===== UDHËZUESI ===== -->

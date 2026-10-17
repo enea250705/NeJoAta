@@ -138,10 +138,12 @@
     if(role==="host"){
       if(m.t==="hello"){ if(peersConn[peerId]){peersConn[peerId].handle=m.handle; peersConn[peerId].uid=m.from;} broadcastRoster(); return; }
       if(m.t==="msg"){ addMessage(m); relay(m,peerId); return; }
+      if(m.t==="sos"){ if(!seen[m.id]){seen[m.id]=1; showSosAlert(m);} relay(m,peerId); return; }
     }else{
       if(m.t==="welcome"){ roster[m.from]=m.handle; refreshCount(); return; }
       if(m.t==="roster"){ roster={}; Object.keys(m.roster||{}).forEach(function(k){if(k!==me.id)roster[k]=m.roster[k];}); refreshCount(); return; }
       if(m.t==="msg"){ addMessage(m); return; }
+      if(m.t==="sos"){ if(!seen[m.id]){seen[m.id]=1; showSosAlert(m);} return; }
     }
   }
   function relay(m,exceptId){ Object.keys(peersConn).forEach(function(pid){ if(pid!==exceptId)sendOn(peersConn[pid].dc,m); }); }
@@ -306,6 +308,82 @@
     stopCamera(); openGate();
   }
 
+  /* ---------- SOS: alarm rreziku ---------- */
+  var countdownTimer=null, shakeOn=false, audioCtx=null;
+
+  function vibrate(){ try{ if(navigator.vibrate) navigator.vibrate([300,120,300,120,400]); }catch(e){} }
+  function beep(){
+    try{
+      audioCtx=audioCtx||new (window.AudioContext||window.webkitAudioContext)();
+      if(audioCtx.state==="suspended")audioCtx.resume();
+      [0,0.35,0.7].forEach(function(t){
+        var o=audioCtx.createOscillator(), g=audioCtx.createGain();
+        o.type="square"; o.frequency.value=880;
+        o.connect(g); g.connect(audioCtx.destination);
+        var s=audioCtx.currentTime+t;
+        g.gain.setValueAtTime(0.0001,s); g.gain.exponentialRampToValueAtTime(0.25,s+0.02);
+        g.gain.exponentialRampToValueAtTime(0.0001,s+0.25);
+        o.start(s); o.stop(s+0.26);
+      });
+    }catch(e){}
+  }
+
+  function sendSOS(){
+    var m={t:"sos",id:me.id+"-sos-"+Date.now(),from:me.id,handle:me.handle,ts:Date.now()};
+    seen[m.id]=1;
+    if(role==="host") relay(m,null); else if(peersConn.host) sendOn(peersConn.host.dc,m);
+    // vetë dërguesi: shënim, jo banner
+    if(!inChat) enterChat();
+    addSys("⚠ Alarmi u dërgua te grupi.");
+    try{ if(navigator.vibrate) navigator.vibrate(200); }catch(e){}
+  }
+
+  function showSosAlert(m){
+    var al=$("sosAlert");
+    $("sosAlertName").textContent="⚠ "+(m.from===me.id?"ti":m.handle)+" ËSHTË NË RREZIK";
+    $("sosAlertTime").textContent=clock(m.ts);
+    al.hidden=false;
+    if(!inChat) enterChat();
+    addSys("⚠ "+m.handle+" sinjalizoi RREZIK — "+clock(m.ts));
+    vibrate(); beep();
+  }
+
+  function startCountdown(){
+    if(countdownTimer) return; // tashmë në numërim
+    var cd=$("sosCountdown"), num=$("sosNum"); var n=5; num.textContent=n; cd.hidden=false;
+    try{ if(navigator.vibrate) navigator.vibrate(120); }catch(e){}
+    countdownTimer=setInterval(function(){
+      n--; num.textContent=n;
+      if(n<=0){ clearInterval(countdownTimer); countdownTimer=null; cd.hidden=true; sendSOS(); }
+    },1000);
+  }
+  function cancelCountdown(){ if(countdownTimer){clearInterval(countdownTimer);countdownTimer=null;} $("sosCountdown").hidden=true; }
+
+  // zbulimi i tundjes
+  var _lt=0,_lx=0,_ly=0,_lz=0,_sh=0,_lsh=0;
+  function onMotion(e){
+    var a=e.accelerationIncludingGravity||e.acceleration; if(!a||a.x==null)return;
+    var now=Date.now(); if(now-_lt<90)return; var dt=now-_lt; _lt=now;
+    var dx=a.x-_lx, dy=a.y-_ly, dz=a.z-_lz; _lx=a.x; _ly=a.y; _lz=a.z;
+    var speed=Math.sqrt(dx*dx+dy*dy+dz*dz)/dt*1000;
+    if(speed>1100){ if(now-_lsh<1000)_sh++; else _sh=1; _lsh=now; if(_sh>=3){ _sh=0; if(!countdownTimer) startCountdown(); } }
+  }
+  function setShake(on, hintEl, toggleEl){
+    function apply(ok){
+      shakeOn=ok; toggleEl.setAttribute("aria-pressed", ok?"true":"false");
+      hintEl.textContent = ok ? "Tundja është aktive. Tund fort telefonin për të nisur alarmin." : "";
+      if(ok) window.addEventListener("devicemotion", onMotion); else window.removeEventListener("devicemotion", onMotion);
+    }
+    if(!on){ apply(false); return; }
+    if(typeof DeviceMotionEvent==="undefined"){ hintEl.textContent="Ky telefon s'e mbështet zbulimin e tundjes. Përdor butonin e alarmit."; return; }
+    if(typeof DeviceMotionEvent.requestPermission==="function"){ // iOS
+      DeviceMotionEvent.requestPermission().then(function(st){
+        if(st==="granted") apply(true);
+        else { toggleEl.setAttribute("aria-pressed","false"); hintEl.textContent="Leja për lëvizjen u refuzua. Lejoje te cilësimet, ose përdor butonin."; }
+      }).catch(function(){ hintEl.textContent="S'u aktivizua dot. Përdor butonin e alarmit."; });
+    } else { apply(true); }
+  }
+
   /* ---------- lidhja e butonave ---------- */
   $("startBtn").addEventListener("click", openRole);
   $("learnBtn").addEventListener("click", function(){ V.guide.dataset.back="gate"; V.guide.hidden=false; V.guide.scrollTop=0; });
@@ -342,7 +420,19 @@
   composer.addEventListener("submit", function(e){ e.preventDefault(); var t=input.value.trim(); if(!t)return; sendMsg(t); input.value=""; autoGrow(); sendBtn.disabled=true; input.focus(); });
 
   $("addPeerBtn").addEventListener("click", function(){ role="host"; hostScanOffer(); });
-  $("panicBtn").addEventListener("click", wipe);
+
+  // SOS
+  $("sosBtn").addEventListener("click", function(){ $("sosView").hidden=false; });
+  $("sosBack").addEventListener("click", function(){ $("sosView").hidden=true; });
+  $("sosSend").addEventListener("click", function(){ $("sosView").hidden=true; sendSOS(); });
+  $("shakeToggle").addEventListener("click", function(){
+    var on = this.getAttribute("aria-pressed")!=="true";
+    setShake(on, $("shakeHint"), this);
+  });
+  $("sosCancel").addEventListener("click", cancelCountdown);
+  $("sosAlertClose").addEventListener("click", function(){ $("sosAlert").hidden=true; });
+
+  $("panicBtn").addEventListener("click", function(){ cancelCountdown(); setShake(false,$("shakeHint"),$("shakeToggle")); $("sosAlert").hidden=true; $("sosView").hidden=true; wipe(); });
   $("guideBtn").addEventListener("click", function(){ V.guide.dataset.back="app"; V.guide.hidden=false; V.guide.scrollTop=0; });
   function closeGuide(){ V.guide.hidden=true; if(V.guide.dataset.back==="app"&&inChat)V.app.hidden=false; else if(role==="host"&&!inChat)V.hostWait.hidden=false; else V.gate.hidden=false; }
   $("guideClose").addEventListener("click", closeGuide);
