@@ -40,8 +40,19 @@
   function esc(s){return s.replace(/[&<>"]/g,function(c){return({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"})[c];});}
   function clock(ts){var d=new Date(ts);return ("0"+d.getHours()).slice(-2)+":"+("0"+d.getMinutes()).slice(-2);}
 
+  function clearEmpty(){ var e=scroll.querySelector(".empty"); if(e)e.remove(); }
+  function showEmptyIfWaiting(){
+    if(role==="host" && connectedCount()===0 && !scroll.querySelector(".row") && !scroll.querySelector(".empty")){
+      var d=document.createElement("div"); d.className="empty";
+      d.innerHTML='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3.2"/><path d="M3 20c0-3.3 2.7-5.2 6-5.2s6 1.9 6 5.2"/><path d="M17 8.5h5M19.5 6v5" opacity=".6"/></svg>'+
+        '<p class="et">Po pret pjesëtarë</p><p class="ed">Shto dikë me butonin + lart djathtas. Kur të lidhet, biseda nis këtu.</p>';
+      scroll.appendChild(d);
+    }
+  }
+
   function addMessage(m){
     if(m.id&&seen[m.id])return; if(m.id)seen[m.id]=1;
+    clearEmpty();
     var wb=atBottom(), mine=m.from===me.id, grouped=lastSender===m.from; lastSender=m.from;
     var row=document.createElement("div");
     row.className="row"+(mine?" mine":"")+(grouped?" grouped":"");
@@ -107,7 +118,7 @@
       peersConn[peerId]=peersConn[peerId]||{}; peersConn[peerId].dc=dc;
       sendOn(dc,{t:"welcome",from:me.id,handle:me.handle});
       broadcastRoster();
-      enterChat(); addSys("Një pjesëtar u lidh.");
+      enterChat(); clearEmpty(); addSys("Një pjesëtar u lidh.");
     }else{
       peersConn.host.dc=dc;
       sendOn(dc,{t:"hello",from:me.id,handle:me.handle});
@@ -275,7 +286,7 @@
     inChat=true; show(V.app);
     roomLabel.textContent = role==="host" ? "ti je host" : "i lidhur";
     if(!enterChat._greeted){ addSys("Hyre si "+me.handle+" · mesazhet nuk ruhen"); enterChat._greeted=true; }
-    refreshCount(); input.focus();
+    refreshCount(); showEmptyIfWaiting(); input.focus();
   }
 
   /* ---------- dërgimi ---------- */

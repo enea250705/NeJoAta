@@ -11,6 +11,13 @@
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
 <style>
+  /* Fontet lokale (pa thirrje jashtë) */
+  @font-face{font-family:"Inter";font-style:normal;font-weight:400;font-display:swap;src:url("lib/fonts/inter-latin-400-normal.woff2") format("woff2");}
+  @font-face{font-family:"Inter";font-style:normal;font-weight:500;font-display:swap;src:url("lib/fonts/inter-latin-500-normal.woff2") format("woff2");}
+  @font-face{font-family:"Inter";font-style:normal;font-weight:600;font-display:swap;src:url("lib/fonts/inter-latin-600-normal.woff2") format("woff2");}
+  @font-face{font-family:"Inter";font-style:normal;font-weight:700;font-display:swap;src:url("lib/fonts/inter-latin-700-normal.woff2") format("woff2");}
+  @font-face{font-family:"Fraunces";font-style:normal;font-weight:500;font-display:swap;src:url("lib/fonts/fraunces-latin-500-normal.woff2") format("woff2");}
+  @font-face{font-family:"Fraunces";font-style:normal;font-weight:600;font-display:swap;src:url("lib/fonts/fraunces-latin-600-normal.woff2") format("woff2");}
   :root{
     --bg:#f3f4f1;--surface:#fff;--surface-2:#eceee8;--surface-3:#e2e5dd;
     --fg:#191b17;--fg-dim:#5a5f55;--fg-faint:#8b9183;--line:#daded2;--line-soft:#e6e9e0;
@@ -19,8 +26,8 @@
     --danger:#a5342b;--danger-bg:#f6ddda;--danger-line:#dfa49d;
     --mine-bg:#d7e8dd;--mine-line:#b7d3c3;
     --radius:12px;--radius-sm:9px;--shadow:0 1px 2px rgba(20,30,22,.04),0 2px 8px rgba(20,30,22,.05);
-    --serif:Georgia,"Times New Roman",serif;
-    --sans:system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    --serif:"Fraunces",Georgia,"Times New Roman",serif;
+    --sans:"Inter",system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
     --mono:ui-monospace,"SF Mono","Cascadia Mono",Menlo,Consolas,monospace;
   }
   @media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
@@ -200,6 +207,37 @@
   ul.clean li{margin-bottom:7px;font-size:14px;line-height:1.55;}
   ul.clean li::marker{color:var(--accent-2);}
   .divider{height:1px;background:var(--line);border:0;margin:32px 0;}
+
+  /* ===== rafinim profesional ===== */
+  body{letter-spacing:-.011em;}
+  .bar{background:color-mix(in srgb,var(--surface) 88%,transparent);-webkit-backdrop-filter:saturate(1.3) blur(12px);backdrop-filter:saturate(1.3) blur(12px);}
+  .bar .title{letter-spacing:-.01em;}
+  .hero-lock h1{letter-spacing:-.8px;line-height:1.05;}
+  .hero-lock .mark{filter:drop-shadow(0 2px 8px color-mix(in srgb,var(--accent) 30%,transparent));}
+  .sig-title,.guide-head h1,.g h2,.qbig{letter-spacing:-.4px;}
+  /* biseda: pak më shumë ajër, hije më e butë, emra më të qartë */
+  .scroll{gap:2px;padding-top:20px;}
+  .bubble{box-shadow:0 1px 1px rgba(20,30,22,.03);line-height:1.45;}
+  .namemeta .nm{letter-spacing:.1px;opacity:.85;}
+  .btime{opacity:.8;}
+  .sys .pill{box-shadow:var(--shadow);}
+  /* gjendja bosh (host po pret) */
+  .empty{align-self:center;text-align:center;color:var(--fg-faint);margin:auto 0;padding:30px 18px;max-width:300px;}
+  .empty svg{width:40px;height:40px;color:var(--line);margin-bottom:12px;}
+  .empty .et{font-family:var(--serif);font-size:18px;color:var(--fg-dim);margin:0 0 5px;}
+  .empty .ed{font-size:13px;line-height:1.55;margin:0;}
+  /* kartat & hapat: hije dhe kufij më të rafinuar */
+  .card,.fact,.scenario,ol.steps>li,.choice{box-shadow:0 1px 2px rgba(20,30,22,.03),0 4px 14px rgba(20,30,22,.04);}
+  .g h2{position:relative;padding-top:4px;}
+  .eyebrow{display:inline-block;}
+  .g-lede{font-size:16px;}
+  .guide-head{border-bottom:1px solid var(--line);margin-bottom:10px;}
+  ol.steps>li::before{box-shadow:0 1px 3px color-mix(in srgb,var(--accent) 18%,transparent);}
+  .install .ihead b{letter-spacing:-.1px;}
+  @media (prefers-color-scheme:dark){
+    .card,.fact,.scenario,ol.steps>li,.choice{box-shadow:0 1px 2px rgba(0,0,0,.3),0 6px 18px rgba(0,0,0,.28);}
+    .bubble{box-shadow:0 1px 2px rgba(0,0,0,.25);}
+  }
 </style>
 </head>
 <body>
@@ -259,7 +297,7 @@
     <div class="warn"><strong>Si funksionon.</strong> Lidhuni të gjithë në të njëjtin Wi-Fi ose hotspot (me të dhënat celulare <b>të fikura</b> → zero internet). Një person bëhet <b>host</b>; të tjerët <b>bashkohen</b> duke skanuar një kod QR. Pa server, pa llogari, asgjë e ruajtur.</div>
     <button class="btn-primary" id="startBtn">Fillo</button>
     <button class="btn-ghost" id="learnBtn">Udhëzuesi: si funksionon &amp; siguria</button>
-    <p class="foot">Instaloje në home screen për ta hapur si app. Pas instalimit të parë, punon pa internet.<br><span style="opacity:.7">versioni 4</span></p>
+    <p class="foot">Instaloje në home screen për ta hapur si app. Pas instalimit të parë, punon pa internet.<br><span style="opacity:.7">versioni 5</span></p>
   </div>
 </div>
 
