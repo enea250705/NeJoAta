@@ -466,14 +466,30 @@
         var name=(it.name&&/\.\w+$/.test(it.name))?it.name:("denoncim-"+it.ts+".mp4");
         card.innerHTML='<video controls playsinline preload="metadata" src="'+url+'"></video>'+
           '<div class="meta"><p class="when">'+fmtDT(it.ts)+' '+loc+'</p>'+desc+
-          '<div class="acts"><a class="exp" href="'+url+'" download="'+esc(name)+'">Eksporto</a><button class="del">Fshi</button></div></div>';
+          '<div class="acts"><button class="pub">Publiko</button><a class="exp" href="'+url+'" download="'+esc(name)+'">Eksporto</a><button class="del">Fshi</button></div></div>';
+        card.querySelector(".pub").addEventListener("click", function(){ shareReport(it,name); });
         card.querySelector(".del").addEventListener("click", function(){ repDel(it.id).then(function(){ renderReports(); updateReportsCount(); }); });
         list.appendChild(card);
       });
     }).catch(function(){ list.innerHTML='<div class="rep-empty">Ruajtja s\'disponohet këtu (p.sh. dritare private). Provo app-in e instaluar.</div>'; });
   }
 
-  $("reportsEntry").addEventListener("click", function(){ $("reportsView").hidden=false; $("repForm").hidden=true; renderReports(); });
+  function shareReport(it,name){
+    var text=(it.desc||"Denoncim dhune")+(it.loc?(" — "+it.loc):"")+" · NeJoAta";
+    try{
+      var file=new File([it.blob], name, {type: it.type||"video/mp4"});
+      if(navigator.canShare && navigator.canShare({files:[file]})){
+        navigator.share({files:[file], title:"Denoncim dhune", text:text}).catch(function(){});
+        return;
+      }
+      if(navigator.share){ navigator.share({title:"Denoncim dhune", text:text}).catch(function(){}); return; }
+    }catch(e){}
+    // fallback: hap listën e kanaleve + kujto eksportin
+    $("chanPanel").hidden=false; $("chanPanel").scrollIntoView({behavior:"smooth",block:"center"});
+  }
+
+  $("chanToggle").addEventListener("click", function(){ var p=$("chanPanel"); p.hidden=!p.hidden; });
+  $("reportsEntry").addEventListener("click", function(){ $("reportsView").hidden=false; $("repForm").hidden=true; $("chanPanel").hidden=true; renderReports(); });
   $("reportsClose").addEventListener("click", function(){ $("reportsView").hidden=true; revokeRepURLs(); });
   $("repAddBtn").addEventListener("click", function(){ $("repFile").click(); });
   $("repFile").addEventListener("change", function(){
