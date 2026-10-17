@@ -438,7 +438,65 @@
   $("guideClose").addEventListener("click", closeGuide);
   $("guideDone").addEventListener("click", closeGuide);
 
+  /* ---------- Denoncimet (video) — ruajtur në IndexedDB (e vetmja gjë që mbetet) ---------- */
+  var pendingFile=null, repURLs=[], clearArmed=false;
+  function revokeRepURLs(){ repURLs.forEach(function(u){try{URL.revokeObjectURL(u);}catch(e){}}); repURLs=[]; }
+  function idbOpen(){ return new Promise(function(res,rej){ if(!window.indexedDB)return rej(new Error("no-idb"));
+    var r=indexedDB.open("nejoata",1);
+    r.onupgradeneeded=function(){ if(!r.result.objectStoreNames.contains("reports")) r.result.createObjectStore("reports",{keyPath:"id"}); };
+    r.onsuccess=function(){res(r.result);}; r.onerror=function(){rej(r.error);}; }); }
+  function repAdd(rec){ return idbOpen().then(function(db){ return new Promise(function(res,rej){ var tx=db.transaction("reports","readwrite"); tx.objectStore("reports").put(rec); tx.oncomplete=function(){res();}; tx.onerror=function(){rej(tx.error);}; }); }); }
+  function repAll(){ return idbOpen().then(function(db){ return new Promise(function(res,rej){ var rq=db.transaction("reports","readonly").objectStore("reports").getAll(); rq.onsuccess=function(){res((rq.result||[]).sort(function(a,b){return b.ts-a.ts;}));}; rq.onerror=function(){rej(rq.error);}; }); }); }
+  function repDel(id){ return idbOpen().then(function(db){ return new Promise(function(res){ var tx=db.transaction("reports","readwrite"); tx.objectStore("reports").delete(id); tx.oncomplete=function(){res();}; }); }); }
+  function repClear(){ return idbOpen().then(function(db){ return new Promise(function(res){ var tx=db.transaction("reports","readwrite"); tx.objectStore("reports").clear(); tx.oncomplete=function(){res();}; }); }); }
+
+  function fmtDT(ts){ var d=new Date(ts); return ("0"+d.getDate()).slice(-2)+"/"+("0"+(d.getMonth()+1)).slice(-2)+"/"+d.getFullYear()+" "+("0"+d.getHours()).slice(-2)+":"+("0"+d.getMinutes()).slice(-2); }
+  function updateReportsCount(){ var el=$("reportsCount"); if(!el)return; repAll().then(function(l){ el.textContent=l.length?("· "+l.length+(l.length===1?" e ruajtur":" të ruajtura")):""; }).catch(function(){ el.textContent=""; }); }
+
+  function renderReports(){
+    var list=$("repList"), clearBtn=$("repClearAll"); revokeRepURLs(); list.innerHTML=""; clearArmed=false; clearBtn.textContent="Fshi të gjitha denoncimet";
+    repAll().then(function(items){
+      clearBtn.hidden=items.length===0;
+      if(!items.length){ list.innerHTML='<div class="rep-empty"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="m16 13 5.2 3V8L16 11"/><rect x="2" y="7" width="14" height="10" rx="2"/></svg><div>Ende s\'ke denoncime. Shto një video me butonin lart.</div></div>'; return; }
+      items.forEach(function(it){
+        var url=URL.createObjectURL(it.blob); repURLs.push(url);
+        var card=document.createElement("div"); card.className="rep-card";
+        var loc=it.loc?'<span class="loc">• '+esc(it.loc)+'</span>':'';
+        var desc=it.desc?'<p class="desc">'+esc(it.desc)+'</p>':'';
+        var name=(it.name&&/\.\w+$/.test(it.name))?it.name:("denoncim-"+it.ts+".mp4");
+        card.innerHTML='<video controls playsinline preload="metadata" src="'+url+'"></video>'+
+          '<div class="meta"><p class="when">'+fmtDT(it.ts)+' '+loc+'</p>'+desc+
+          '<div class="acts"><a class="exp" href="'+url+'" download="'+esc(name)+'">Eksporto</a><button class="del">Fshi</button></div></div>';
+        card.querySelector(".del").addEventListener("click", function(){ repDel(it.id).then(function(){ renderReports(); updateReportsCount(); }); });
+        list.appendChild(card);
+      });
+    }).catch(function(){ list.innerHTML='<div class="rep-empty">Ruajtja s\'disponohet këtu (p.sh. dritare private). Provo app-in e instaluar.</div>'; });
+  }
+
+  $("reportsEntry").addEventListener("click", function(){ $("reportsView").hidden=false; $("repForm").hidden=true; renderReports(); });
+  $("reportsClose").addEventListener("click", function(){ $("reportsView").hidden=true; revokeRepURLs(); });
+  $("repAddBtn").addEventListener("click", function(){ $("repFile").click(); });
+  $("repFile").addEventListener("change", function(){
+    var f=this.files&&this.files[0]; if(!f)return;
+    pendingFile=f;
+    try{ var u=URL.createObjectURL(f); repURLs.push(u); $("repPreview").src=u; }catch(e){}
+    $("repForm").hidden=false; $("repForm").scrollIntoView({behavior:"smooth",block:"center"});
+  });
+  $("repCancel").addEventListener("click", function(){ pendingFile=null; $("repForm").hidden=true; $("repFile").value=""; $("repDesc").value=""; $("repLoc").value=""; });
+  $("repSave").addEventListener("click", function(){
+    if(!pendingFile)return;
+    var rec={id:"r"+Date.now()+"-"+(Math.random()*1e4|0),blob:pendingFile,type:pendingFile.type||"video",name:pendingFile.name||"",desc:$("repDesc").value.trim(),loc:$("repLoc").value.trim(),ts:Date.now()};
+    $("repSave").disabled=true;
+    repAdd(rec).then(function(){ pendingFile=null; $("repForm").hidden=true; $("repFile").value=""; $("repDesc").value=""; $("repLoc").value=""; $("repSave").disabled=false; renderReports(); updateReportsCount(); })
+      .catch(function(){ $("repSave").disabled=false; var l=$("repList"); l.insertAdjacentHTML("afterbegin",'<div class="rep-empty" style="color:var(--danger)">S\'u ruajt dot (ndoshta hapësira u mbush). Provo ta eksportosh e të fshish të vjetrat.</div>'); });
+  });
+  $("repClearAll").addEventListener("click", function(){
+    if(!clearArmed){ clearArmed=true; this.textContent="Shtyp sërish për të fshirë TË GJITHA"; return; }
+    repClear().then(function(){ renderReports(); updateReportsCount(); });
+  });
+
   if("serviceWorker" in navigator){ window.addEventListener("load", function(){ navigator.serviceWorker.register("./sw.js").catch(function(){}); }); }
+  updateReportsCount();
 
   /* ---------- nxit instalimin si PWA (vetëm kur hapet nga shfletuesi) ---------- */
   (function installPrompt(){

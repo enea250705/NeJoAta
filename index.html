@@ -173,6 +173,43 @@
   #sosCountdown p{font-size:16px;margin:0 0 30px;max-width:22ch;}
   #sosCountdown .cancel{background:#fff;color:var(--danger);border:none;border-radius:12px;padding:16px 28px;font:inherit;font-weight:700;font-size:17px;cursor:pointer;}
 
+  /* ===== Denoncimet (video) ===== */
+  .report-entry{width:100%;display:flex;align-items:center;gap:13px;text-align:left;margin-top:16px;cursor:pointer;
+    background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:15px 16px;box-shadow:var(--shadow);transition:border-color .15s;}
+  .report-entry:hover{border-color:var(--accent);}
+  .report-entry .ic{width:40px;height:40px;flex:none;border-radius:10px;background:var(--accent-soft);display:flex;align-items:center;justify-content:center;color:var(--accent);}
+  .report-entry .ic svg{width:21px;height:21px;}
+  .report-entry .rtxt{flex:1;min-width:0;line-height:1.35;}
+  .report-entry .rtxt b{display:block;font-size:14.5px;font-weight:650;}
+  .report-entry .rtxt span{font-size:12px;color:var(--fg-dim);}
+  .report-entry .rcount{color:var(--accent);font-weight:700;}
+  .report-entry .chev{width:18px;height:18px;flex:none;color:var(--fg-faint);}
+
+  #reportsView .panel{max-width:620px;}
+  .rep-warn{background:var(--warn-bg);color:var(--warn-fg);border:1px solid var(--warn-line);border-radius:var(--radius-sm);padding:12px 14px;font-size:12.5px;line-height:1.55;margin-bottom:16px;}
+  .rep-add{display:flex;gap:9px;margin-bottom:16px;}
+  .rep-add .big{flex:1;background:var(--danger);color:#fff;border:none;border-radius:var(--radius-sm);padding:14px;font:inherit;font-weight:650;font-size:15px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:9px;}
+  .rep-add .big svg{width:19px;height:19px;}
+  .rep-form{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:16px;margin-bottom:16px;box-shadow:var(--shadow);}
+  .rep-form label{display:block;font-size:12.5px;font-weight:600;margin:0 0 5px;}
+  .rep-form input,.rep-form textarea{width:100%;font:inherit;font-size:14px;color:var(--fg);background:var(--bg);border:1px solid var(--line);border-radius:var(--radius-sm);padding:10px 12px;margin-bottom:12px;resize:none;}
+  .rep-form video{width:100%;border-radius:var(--radius-sm);margin-bottom:12px;background:#000;max-height:240px;}
+  .rep-form .fr{display:flex;gap:9px;}
+  .rep-form .fr>*{flex:1;}
+  .rep-list{display:flex;flex-direction:column;gap:12px;}
+  .rep-empty{text-align:center;color:var(--fg-faint);padding:30px 16px;font-size:13.5px;line-height:1.6;}
+  .rep-empty svg{width:38px;height:38px;color:var(--line);margin-bottom:10px;}
+  .rep-card{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);overflow:hidden;box-shadow:var(--shadow);}
+  .rep-card video{width:100%;display:block;background:#000;max-height:280px;}
+  .rep-card .meta{padding:12px 14px;}
+  .rep-card .meta .when{font-size:12px;color:var(--fg-dim);font-variant-numeric:tabular-nums;margin:0 0 4px;display:flex;align-items:center;gap:7px;flex-wrap:wrap;}
+  .rep-card .meta .when .loc{color:var(--accent-2);}
+  .rep-card .meta .desc{font-size:14px;margin:0 0 10px;line-height:1.5;word-break:break-word;}
+  .rep-card .acts{display:flex;gap:8px;}
+  .rep-card .acts a,.rep-card .acts button{flex:1;text-align:center;text-decoration:none;font:inherit;font-size:13px;font-weight:600;border-radius:8px;padding:9px;cursor:pointer;border:1px solid var(--line);background:var(--surface-2);color:var(--fg);}
+  .rep-card .acts .del{border-color:var(--danger-line);color:var(--danger);background:var(--danger-bg);}
+  .rep-clear{width:100%;margin-top:18px;background:transparent;border:1px solid var(--danger-line);color:var(--danger);border-radius:var(--radius-sm);padding:11px;font:inherit;font-size:13px;cursor:pointer;}
+
   .choice{width:100%;text-align:left;background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:16px 17px;margin-bottom:12px;cursor:pointer;display:flex;gap:13px;align-items:flex-start;box-shadow:var(--shadow);transition:border-color .15s,transform .1s;}
   .choice:hover{border-color:var(--accent);}
   .choice:active{transform:scale(.995);}
@@ -335,9 +372,16 @@
       <p class="tag">Bisedë lokale anonime pa internet. Lidhje telefon-me-telefon mbi Wi-Fi lokal.</p>
     </div>
     <div class="warn"><strong>Si funksionon.</strong> Lidhuni të gjithë në të njëjtin Wi-Fi ose hotspot (me të dhënat celulare <b>të fikura</b> → zero internet). Një person bëhet <b>host</b>; të tjerët <b>bashkohen</b> duke skanuar një kod QR. Pa server, pa llogari, asgjë e ruajtur.</div>
-    <button class="btn-primary" id="startBtn">Fillo</button>
+    <button class="btn-primary" id="startBtn">Fillo bisedën</button>
     <button class="btn-ghost" id="learnBtn">Udhëzuesi: si funksionon &amp; siguria</button>
-    <p class="foot">Instaloje në home screen për ta hapur si app. Pas instalimit të parë, punon pa internet.<br><span style="opacity:.7">versioni 6</span></p>
+
+    <button class="report-entry" id="reportsEntry">
+      <span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m16 13 5.2 3V8L16 11"/><rect x="2" y="7" width="14" height="10" rx="2"/><circle cx="7.5" cy="12" r="1.3" fill="currentColor" stroke="none"/></svg></span>
+      <span class="rtxt"><b>Denonco dhunën — ruaj video</b><span>Dëshmi që mbeten në telefon edhe pa internet <span class="rcount" id="reportsCount"></span></span></span>
+      <svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>
+    </button>
+
+    <p class="foot">Instaloje në home screen për ta hapur si app. Pas instalimit të parë, punon pa internet.<br><span style="opacity:.7">versioni 7</span></p>
   </div>
 </div>
 
@@ -390,6 +434,35 @@
 
     <p class="sig-msg" id="sigMsg"></p>
     <button class="backlink" id="sigBack">← Mbrapa</button>
+  </div>
+</div>
+
+<!-- ===== DENONCIMET (VIDEO) ===== -->
+<div class="overlay" id="reportsView" hidden style="z-index:55">
+  <div class="panel">
+    <div class="guide-head"><h1>Denoncime të dhunës</h1><button class="xbtn" id="reportsClose" aria-label="Mbyll">×</button></div>
+    <div class="rep-warn">
+      <b>Kujdes.</b> Këto video ruhen vetëm në këtë telefon, edhe pa internet. Janë dëshmi e vlefshme — por nëse ta marrin telefonin, mund të përdoren kundër teje dhe të tjerëve. <b>Eksportoji sa më shpejt</b> te një vend i sigurt dhe shmang fytyrat e protestuesve kur mundesh.
+    </div>
+    <div class="rep-add">
+      <button class="big" id="repAddBtn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m16 13 5.2 3V8L16 11"/><rect x="2" y="7" width="14" height="10" rx="2"/></svg>Shto video denoncimi</button>
+    </div>
+    <input type="file" id="repFile" accept="video/*" capture="environment" hidden>
+
+    <div class="rep-form" id="repForm" hidden>
+      <video id="repPreview" controls playsinline></video>
+      <label for="repDesc">Përshkrim (çfarë ndodhi, ku, kush)</label>
+      <textarea id="repDesc" rows="2" placeholder="p.sh. Polici goditi një protestues te sheshi, ora ~18:30"></textarea>
+      <label for="repLoc">Vendi (opsional)</label>
+      <input type="text" id="repLoc" placeholder="p.sh. Sheshi qendror, te hyrja veriore">
+      <div class="fr">
+        <button class="btn-ghost" id="repCancel" style="margin-top:0">Anulo</button>
+        <button class="btn-primary" id="repSave">Ruaj denoncimin</button>
+      </div>
+    </div>
+
+    <div class="rep-list" id="repList"></div>
+    <button class="rep-clear" id="repClearAll" hidden>Fshi të gjitha denoncimet</button>
   </div>
 </div>
 
