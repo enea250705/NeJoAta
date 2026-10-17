@@ -1,5 +1,5 @@
 /* ============================================================
-   Meshline — bisedë lokale anonime pa internet (WebRTC mbi Wi-Fi lokal)
+   NeJoAta — bisedë lokale anonime pa internet (WebRTC mbi Wi-Fi lokal)
    Topologjia: YLL. Një "host" është qendra; të tjerët ("bashkohu") lidhen
    vetëm me host-in, i cili ua përcjell mesazhet njëri-tjetrit.
    Sinjalizimi bëhet DORAZI me kod QR (ose tekst) — pa server fare.

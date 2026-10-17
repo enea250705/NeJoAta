@@ -1,4 +1,4 @@
-/* Meshline service worker — bën që app-i të hapet pa internet.
+/* NeJoAta service worker — bën që app-i të hapet pa internet.
    Strategji: cache-first për skedarët e app-it. Ndërro CACHE kur përditëson. */
 var CACHE = "meshline-v1";
 var ASSETS = [

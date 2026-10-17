@@ -1,4 +1,4 @@
-# Meshline — PWA lokale pa internet
+# NeJoAta — PWA lokale pa internet
 
 Bisedë anonime telefon-me-telefon që punon **pa internet**, mbi një Wi-Fi/hotspot lokal.
 Lidhja bëhet me WebRTC; çiftimi me kod QR; pa server, pa llogari, asgjë e ruajtur.
