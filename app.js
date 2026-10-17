@@ -438,8 +438,35 @@
   $("guideClose").addEventListener("click", closeGuide);
   $("guideDone").addEventListener("click", closeGuide);
 
-  /* ---------- Denoncimet (video) — ruajtur në IndexedDB (e vetmja gjë që mbetet) ---------- */
+  /* ---------- Denoncimet (video) ---------- */
   var pendingFile=null, repURLs=[], clearArmed=false;
+
+  // Server (Supabase) nëse config-u është plotësuar; përndryshe LOKAL (IndexedDB)
+  var SB=null, SERVER=false;
+  (function initSB(){
+    try{
+      var c=window.NEJOATA_SUPABASE;
+      if(c && c.url && c.anon && window.supabase && window.supabase.createClient){
+        SB=window.supabase.createClient(c.url, c.anon, { auth:{ persistSession:false } });
+        SERVER=true;
+      }
+    }catch(e){ SERVER=false; }
+  })();
+
+  function sbUpload(file, desc, loc){
+    var ext=(file.name&&/\.(\w+)$/.exec(file.name)) ? RegExp.$1 : (file.type&&/\/(\w+)/.exec(file.type)?RegExp.$1:"mp4");
+    var path=Date.now()+"-"+Math.random().toString(36).slice(2,8)+"."+ext;
+    return SB.storage.from("videos").upload(path, file, { contentType:file.type||"video/mp4", upsert:false })
+      .then(function(r){ if(r.error) throw r.error;
+        var pub=SB.storage.from("videos").getPublicUrl(path);
+        var url=pub.data.publicUrl;
+        return SB.from("reports").insert({ video_url:url, storage_path:path, description:desc||null, location:loc||null });
+      }).then(function(r){ if(r&&r.error) throw r.error; });
+  }
+  function sbFeed(){
+    return SB.from("reports").select("*").order("created_at",{ascending:false}).limit(100)
+      .then(function(r){ if(r.error) throw r.error; return r.data||[]; });
+  }
   function revokeRepURLs(){ repURLs.forEach(function(u){try{URL.revokeObjectURL(u);}catch(e){}}); repURLs=[]; }
   function idbOpen(){ return new Promise(function(res,rej){ if(!window.indexedDB)return rej(new Error("no-idb"));
     var r=indexedDB.open("nejoata",1);
@@ -451,13 +478,20 @@
   function repClear(){ return idbOpen().then(function(db){ return new Promise(function(res){ var tx=db.transaction("reports","readwrite"); tx.objectStore("reports").clear(); tx.oncomplete=function(){res();}; }); }); }
 
   function fmtDT(ts){ var d=new Date(ts); return ("0"+d.getDate()).slice(-2)+"/"+("0"+(d.getMonth()+1)).slice(-2)+"/"+d.getFullYear()+" "+("0"+d.getHours()).slice(-2)+":"+("0"+d.getMinutes()).slice(-2); }
-  function updateReportsCount(){ var el=$("reportsCount"); if(!el)return; repAll().then(function(l){ el.textContent=l.length?("· "+l.length+(l.length===1?" e ruajtur":" të ruajtura")):""; }).catch(function(){ el.textContent=""; }); }
+  function updateReportsCount(){
+    var el=$("reportsCount"); if(!el)return;
+    if(SERVER){ el.textContent="· feed i përbashkët"; return; }
+    repAll().then(function(l){ el.textContent=l.length?("· "+l.length+(l.length===1?" e ruajtur":" të ruajtura")):""; }).catch(function(){ el.textContent=""; });
+  }
+
+  function emptyBox(txt){ return '<div class="rep-empty"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="m16 13 5.2 3V8L16 11"/><rect x="2" y="7" width="14" height="10" rx="2"/></svg><div>'+txt+'</div></div>'; }
 
   function renderReports(){
+    if(SERVER) return renderServerFeed();
     var list=$("repList"), clearBtn=$("repClearAll"); revokeRepURLs(); list.innerHTML=""; clearArmed=false; clearBtn.textContent="Fshi të gjitha denoncimet";
     repAll().then(function(items){
       clearBtn.hidden=items.length===0;
-      if(!items.length){ list.innerHTML='<div class="rep-empty"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="m16 13 5.2 3V8L16 11"/><rect x="2" y="7" width="14" height="10" rx="2"/></svg><div>Ende s\'ke denoncime. Shto një video me butonin lart.</div></div>'; return; }
+      if(!items.length){ list.innerHTML=emptyBox("Ende s\'ke denoncime. Shto një video me butonin lart."); return; }
       items.forEach(function(it){
         var url=URL.createObjectURL(it.blob); repURLs.push(url);
         var card=document.createElement("div"); card.className="rep-card";
@@ -471,7 +505,26 @@
         card.querySelector(".del").addEventListener("click", function(){ repDel(it.id).then(function(){ renderReports(); updateReportsCount(); }); });
         list.appendChild(card);
       });
-    }).catch(function(){ list.innerHTML='<div class="rep-empty">Ruajtja s\'disponohet këtu (p.sh. dritare private). Provo app-in e instaluar.</div>'; });
+    }).catch(function(){ list.innerHTML=emptyBox("Ruajtja s\'disponohet këtu (p.sh. dritare private)."); });
+  }
+
+  function renderServerFeed(){
+    var list=$("repList"), clearBtn=$("repClearAll"); revokeRepURLs(); list.innerHTML=emptyBox("Po ngarkohet feed-i i përbashkët…"); clearBtn.hidden=true;
+    sbFeed().then(function(items){
+      list.innerHTML="";
+      if(!items.length){ list.innerHTML=emptyBox("Ende s\'ka denoncime. Ji i pari që shton një video."); return; }
+      items.forEach(function(it){
+        var ts=it.created_at?Date.parse(it.created_at):Date.now();
+        var card=document.createElement("div"); card.className="rep-card";
+        var loc=it.location?'<span class="loc">• '+esc(it.location)+'</span>':'';
+        var desc=it.description?'<p class="desc">'+esc(it.description)+'</p>':'';
+        card.innerHTML='<video controls playsinline preload="metadata" src="'+esc(it.video_url)+'"></video>'+
+          '<div class="meta"><p class="when">'+fmtDT(ts)+' '+loc+'</p>'+desc+
+          '<div class="acts"><button class="pub">Publiko</button><a class="exp" href="'+esc(it.video_url)+'" target="_blank" rel="noopener">Hap</a></div></div>';
+        card.querySelector(".pub").addEventListener("click", function(){ shareURL(it.video_url, it.description, it.location); });
+        list.appendChild(card);
+      });
+    }).catch(function(){ list.innerHTML=emptyBox("S\'u lidh dot me feed-in. Kontrollo internetin dhe provo sërish."); });
   }
 
   function shareReport(it,name){
@@ -484,12 +537,23 @@
       }
       if(navigator.share){ navigator.share({title:"Denoncim dhune", text:text}).catch(function(){}); return; }
     }catch(e){}
-    // fallback: hap listën e kanaleve + kujto eksportin
+    $("chanPanel").hidden=false; $("chanPanel").scrollIntoView({behavior:"smooth",block:"center"});
+  }
+  function shareURL(url, desc, loc){
+    var text=(desc||"Denoncim dhune")+(loc?(" — "+loc):"")+" · NeJoAta";
+    try{ if(navigator.share){ navigator.share({title:"Denoncim dhune", text:text, url:url}).catch(function(){}); return; } }catch(e){}
     $("chanPanel").hidden=false; $("chanPanel").scrollIntoView({behavior:"smooth",block:"center"});
   }
 
   $("chanToggle").addEventListener("click", function(){ var p=$("chanPanel"); p.hidden=!p.hidden; });
-  $("reportsEntry").addEventListener("click", function(){ $("reportsView").hidden=false; $("repForm").hidden=true; $("chanPanel").hidden=true; renderReports(); });
+  $("reportsEntry").addEventListener("click", function(){
+    $("reportsView").hidden=false; $("repForm").hidden=true; $("chanPanel").hidden=true;
+    var w=$("repWarn");
+    if(w){ w.innerHTML = SERVER
+      ? '<b>Kujdes.</b> Këto video ngarkohen në një feed të përbashkët që e sheh kushdo — dhe rrinë në një server që mund të merret a mbyllet. Mos trego fytyra protestuesish; dhuna tregohet, njerëzit mbrohen.'
+      : '<b>Kujdes.</b> Këto video ruhen vetëm në këtë telefon, edhe pa internet. <b>Eksportoji sa më shpejt</b> te një vend i sigurt dhe shmang fytyrat e protestuesve kur mundesh.'; }
+    renderReports();
+  });
   $("reportsClose").addEventListener("click", function(){ $("reportsView").hidden=true; revokeRepURLs(); });
   $("repAddBtn").addEventListener("click", function(){ $("repFile").click(); });
   $("repFile").addEventListener("change", function(){
@@ -499,13 +563,22 @@
     $("repForm").hidden=false; $("repForm").scrollIntoView({behavior:"smooth",block:"center"});
   });
   $("repCancel").addEventListener("click", function(){ pendingFile=null; $("repForm").hidden=true; $("repFile").value=""; $("repDesc").value=""; $("repLoc").value=""; });
+  function resetRepForm(){ pendingFile=null; $("repForm").hidden=true; $("repFile").value=""; $("repDesc").value=""; $("repLoc").value=""; $("repSave").disabled=false; $("repSave").textContent="Ruaj denoncimin"; }
   $("repSave").addEventListener("click", function(){
     if(!pendingFile)return;
-    var rec={id:"r"+Date.now()+"-"+(Math.random()*1e4|0),blob:pendingFile,type:pendingFile.type||"video",name:pendingFile.name||"",desc:$("repDesc").value.trim(),loc:$("repLoc").value.trim(),ts:Date.now()};
+    var desc=$("repDesc").value.trim(), loc=$("repLoc").value.trim();
     $("repSave").disabled=true;
-    repAdd(rec).then(function(){ pendingFile=null; $("repForm").hidden=true; $("repFile").value=""; $("repDesc").value=""; $("repLoc").value=""; $("repSave").disabled=false; renderReports(); updateReportsCount(); })
-      .catch(function(){ $("repSave").disabled=false; var l=$("repList"); l.insertAdjacentHTML("afterbegin",'<div class="rep-empty" style="color:var(--danger)">S\'u ruajt dot (ndoshta hapësira u mbush). Provo ta eksportosh e të fshish të vjetrat.</div>'); });
+    if(SERVER){
+      $("repSave").textContent="Po ngarkohet…";
+      sbUpload(pendingFile, desc, loc).then(function(){ resetRepForm(); renderServerFeed(); updateReportsCount(); })
+        .catch(function(){ $("repSave").disabled=false; $("repSave").textContent="Ruaj denoncimin"; alertRep("S'u ngarkua dot. Kontrollo internetin / madhësinë e videos dhe provo sërish."); });
+      return;
+    }
+    var rec={id:"r"+Date.now()+"-"+(Math.random()*1e4|0),blob:pendingFile,type:pendingFile.type||"video",name:pendingFile.name||"",desc:desc,loc:loc,ts:Date.now()};
+    repAdd(rec).then(function(){ resetRepForm(); renderReports(); updateReportsCount(); })
+      .catch(function(){ $("repSave").disabled=false; alertRep("S'u ruajt dot (ndoshta hapësira u mbush). Provo ta eksportosh e të fshish të vjetrat."); });
   });
+  function alertRep(t){ var l=$("repList"); l.insertAdjacentHTML("afterbegin",'<div class="rep-empty" style="color:var(--danger)">'+esc(t)+'</div>'); }
   $("repClearAll").addEventListener("click", function(){
     if(!clearArmed){ clearArmed=true; this.textContent="Shtyp sërish për të fshirë TË GJITHA"; return; }
     repClear().then(function(){ renderReports(); updateReportsCount(); });
