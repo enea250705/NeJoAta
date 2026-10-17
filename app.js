@@ -125,7 +125,7 @@
   function onData(peerId,raw){
     var m; try{m=JSON.parse(raw);}catch(e){return;}
     if(role==="host"){
-      if(m.t==="hello"){ roster[m.from]=m.handle; if(peersConn[peerId])peersConn[peerId].handle=m.handle; broadcastRoster(); return; }
+      if(m.t==="hello"){ if(peersConn[peerId]){peersConn[peerId].handle=m.handle; peersConn[peerId].uid=m.from;} broadcastRoster(); return; }
       if(m.t==="msg"){ addMessage(m); relay(m,peerId); return; }
     }else{
       if(m.t==="welcome"){ roster[m.from]=m.handle; refreshCount(); return; }
@@ -135,8 +135,10 @@
   }
   function relay(m,exceptId){ Object.keys(peersConn).forEach(function(pid){ if(pid!==exceptId)sendOn(peersConn[pid].dc,m); }); }
   function broadcastRoster(){
+    // Lista mbahet sipas identitetit REAL të secilit (uid), jo sipas etiketës së lidhjes,
+    // që çdo telefon ta njohë veten dhe të mos numërohet dy herë.
     var full={}; full[me.id]=me.handle;
-    Object.keys(peersConn).forEach(function(pid){ if(peersConn[pid].handle)full[pid]=peersConn[pid].handle; });
+    Object.keys(peersConn).forEach(function(pid){ var p=peersConn[pid]; if(p&&p.uid&&p.handle)full[p.uid]=p.handle; });
     roster={}; Object.keys(full).forEach(function(k){ if(k!==me.id)roster[k]=full[k]; });
     Object.keys(peersConn).forEach(function(pid){ sendOn(peersConn[pid].dc,{t:"roster",roster:full}); });
     refreshCount();
@@ -203,27 +205,41 @@
   }
   function startCamera(){
     stopCamera();
-    var video=$("scanVideo"), canvas=$("scanCanvas"), ctx=canvas.getContext("2d");
-    if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia){ $("scanVideo").hidden=true; $("scanHint").textContent="Kamera s'disponohet. Ngjit kodin me dorë më poshtë."; return; }
-    navigator.mediaDevices.getUserMedia({video:{facingMode:"environment"}}).then(function(s){
-      camStream=s; video.hidden=false; video.srcObject=s; video.setAttribute("playsinline","true"); video.muted=true;
+    var video=$("scanVideo"), canvas=$("scanCanvas");
+    var ctx=canvas.getContext("2d",{willReadFrequently:true});
+    if(!window.isSecureContext){ video.hidden=true; $("scanHint").textContent="Kamera kërkon HTTPS. Hape faqen nga linku i Vercel (https://…), jo skedarin lokal. Ose ngjit kodin me dorë më poshtë."; return; }
+    if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia){ video.hidden=true; $("scanHint").textContent="Kamera s'disponohet në këtë shfletues. Ngjit kodin me dorë më poshtë."; return; }
+
+    function run(stream){
+      camStream=stream; video.hidden=false; video.srcObject=stream;
+      video.setAttribute("playsinline","true"); video.setAttribute("autoplay","true"); video.muted=true;
+      $("scanHint").textContent="Kamera aktive — drejtoje nga QR-ja në ekranin tjetër (afro/largo pak derisa ta kapë).";
       var p=video.play(); if(p&&p.catch)p.catch(function(){});
       (function tick(){
         if(!camStream)return;
         if(video.readyState>=2 && video.videoWidth){
           canvas.width=video.videoWidth; canvas.height=video.videoHeight;
-          ctx.drawImage(video,0,0,canvas.width,canvas.height);
-          var img;
-          try{ img=ctx.getImageData(0,0,canvas.width,canvas.height); }catch(e){ img=null; }
-          var res = (img&&window.jsQR)?jsQR(img.data,img.width,img.height,{inversionAttempts:"dontInvert"}):null;
-          if(res&&res.data){ var cb=scanCb; stopCamera(); if(cb)cb(res.data); return; }
+          try{
+            ctx.drawImage(video,0,0,canvas.width,canvas.height);
+            var img=ctx.getImageData(0,0,canvas.width,canvas.height);
+            var res=window.jsQR?jsQR(img.data,img.width,img.height,{inversionAttempts:"attemptBoth"}):null;
+            if(res&&res.data){ var cb=scanCb; stopCamera(); if(cb)cb(res.data); return; }
+          }catch(e){}
         }
         scanRAF=requestAnimationFrame(tick);
       })();
-    }).catch(function(){
-      $("scanVideo").hidden=true;
-      $("scanHint").textContent="Kamera s'u hap (lejo kamerën, ose ngjit kodin me dorë më poshtë).";
-    });
+    }
+    // provo kamerën e pasme; nëse dështon, provo çfarëdo kamere
+    navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:"environment"}}})
+      .then(run)
+      .catch(function(){
+        navigator.mediaDevices.getUserMedia({video:true}).then(run).catch(function(err){
+          video.hidden=true;
+          var name=(err&&err.name)||"";
+          if(name==="NotAllowedError") $("scanHint").textContent="Kamera u bllokua. Lejo kamerën te cilësimet e faqes, ose ngjit kodin me dorë më poshtë.";
+          else $("scanHint").textContent="Kamera s'u hap. Ngjit kodin me dorë më poshtë.";
+        });
+      });
   }
   function stopCamera(){
     if(scanRAF){cancelAnimationFrame(scanRAF);scanRAF=null;}
