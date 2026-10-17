@@ -679,44 +679,53 @@
   }
   function renderAddRow(l){
     var box=$("lvAddRow"); box.innerHTML="";
+    var cols=l.columns||[];
     var photoIndex = Number(l.photo_index !== undefined && l.photo_index !== null ? l.photo_index : -1);
-    (l.columns||[]).forEach(function(c,i){
+    cols.forEach(function(c,i){
       var lab=document.createElement("label"); lab.textContent=c; box.appendChild(lab);
-      var inp=document.createElement("input"); inp.type="text"; inp.setAttribute("data-ci",i); box.appendChild(inp);
+      if(i===photoIndex){
+        var photoInput=document.createElement("input");
+        photoInput.type="file";
+        photoInput.accept="image/*";
+        photoInput.capture="environment";
+        photoInput.setAttribute("data-photo-field","1");
+        photoInput.setAttribute("data-ci",String(i));
+        box.appendChild(photoInput);
+        return;
+      }
+      var inp=document.createElement("input"); inp.type="text"; inp.setAttribute("data-ci",String(i)); box.appendChild(inp);
     });
-    if(photoIndex >= 0){
-      var photoLabel=document.createElement("label"); photoLabel.textContent="Foto (opsional)"; box.appendChild(photoLabel);
-      var photoInput=document.createElement("input"); photoInput.type="file"; photoInput.accept="image/*"; photoInput.capture="environment"; photoInput.setAttribute("data-photo","1"); box.appendChild(photoInput);
-    }
     var btn=document.createElement("button"); btn.className="btn-primary"; btn.textContent="Shto rresht";
     btn.addEventListener("click", function(){
-      var inps=box.querySelectorAll("input[data-ci]"); var arr=[]; inps.forEach(function(x){ arr.push(x.value.trim()); });
-      var photoInput=box.querySelector("input[data-photo]");
-      function commit(arr){
-        if(arr.every(function(v){ return !(v && String(v).trim()); }) && !(photoInput && photoInput.files && photoInput.files.length)) return;
+      var textInputs=box.querySelectorAll("input[data-ci]");
+      function submitRow(photoValue){
+        var rowsData = Array(cols.length).fill("");
+        textInputs.forEach(function(el){
+          var idx = Number(el.getAttribute("data-ci"));
+          if(el.type !== "file") rowsData[idx] = el.value.trim();
+        });
+        if(photoIndex >= 0) rowsData[photoIndex] = photoValue || "";
+        var hasValue = rowsData.some(function(v){ return v && String(v).trim(); });
+        if(!hasValue) return;
         btn.disabled=true;
-        rowAdd(curList.id, arr).then(function(){ inps.forEach(function(x){x.value="";}); if(photoInput){photoInput.value="";} btn.disabled=false; reloadRows(curList); }).catch(function(){ btn.disabled=false; });
+        rowAdd(curList.id, rowsData).then(function(){
+          textInputs.forEach(function(el){ if(el.type !== "file") el.value=""; });
+          var photoInput = box.querySelector("input[data-photo-field]");
+          if(photoInput){ photoInput.value=""; }
+          btn.disabled=false; reloadRows(curList);
+        }).catch(function(){ btn.disabled=false; });
       }
+
+      var photoInput = box.querySelector("input[data-photo-field]");
       if(photoInput && photoInput.files && photoInput.files.length){
-        var file=photoInput.files[0];
-        var reader=new FileReader();
-        reader.onload=function(){
-          if(photoIndex >= 0){
-            arr.splice(photoIndex, 0, String(reader.result));
-          } else {
-            arr.push(String(reader.result));
-          }
-          commit(arr);
-        };
-        reader.onerror=function(){
-          if(photoIndex >= 0){ arr.splice(photoIndex, 0, ""); } else { arr.push(""); }
-          commit(arr);
-        };
+        var file = photoInput.files[0];
+        var reader = new FileReader();
+        reader.onload = function(){ submitRow(String(reader.result)); };
+        reader.onerror = function(){ submitRow(""); };
         reader.readAsDataURL(file);
         return;
       }
-      if(photoIndex >= 0){ arr.splice(photoIndex, 0, ""); }
-      commit(arr);
+      submitRow("");
     });
     box.appendChild(btn);
   }
@@ -725,27 +734,22 @@
     listRows(l.id).then(function(rows){
       var cols=l.columns||[];
       var photoIndex = Number(l.photo_index !== undefined && l.photo_index !== null ? l.photo_index : -1);
-      var headCols = cols.slice();
-      if(photoIndex >= 0){ headCols.splice(photoIndex, 0, "Foto"); }
-      var head="<thead><tr>"+headCols.map(function(c){return "<th>"+esc(c)+"</th>";}).join("")+"<th></th></tr></thead>";
+      var head="<thead><tr>"+cols.map(function(c){return "<th>"+esc(c)+"</th>";}).join("")+"<th></th></tr></thead>";
       var body="<tbody>";
-      if(!rows.length){ body+='<tr><td class="tbl-empty" colspan="'+(headCols.length+1)+'">Ende s\'ka rreshta. Shtoje të parin lart.</td></tr>'; }
+      if(!rows.length){ body+='<tr><td class="tbl-empty" colspan="'+(cols.length+1)+'">Ende s\'ka rreshta. Shtoje të parin lart.</td></tr>'; }
       else rows.forEach(function(rw){
         var d=rw.data||[];
         var cells=[];
-        for(var i=0;i<cols.length;i++){
-          var actualIndex = i + (photoIndex >= 0 && i >= photoIndex ? 1 : 0);
-          var val=(d[actualIndex]!=null?String(d[actualIndex]):"");
-          cells.push("<td>"+esc(val)+"</td>");
-        }
-        if(photoIndex >= 0){
-          var photo = d[photoIndex] || "";
-          if(photo && /^data:image\//i.test(photo)){
-            cells.splice(photoIndex, 0, '<td><img class="list-thumb" src="'+esc(photo)+'" alt="Foto"></td>');
+        cols.forEach(function(col, i){
+          var val = d[i]!=null ? String(d[i]) : "";
+          if(i===photoIndex && val && /^data:image\//i.test(val)){
+            cells.push('<td><img class="list-thumb" src="'+esc(val)+'" alt="Foto"></td>');
+          } else if(i===photoIndex){
+            cells.push('<td class="tbl-empty">—</td>');
           } else {
-            cells.splice(photoIndex, 0, '<td class="tbl-empty">—</td>');
+            cells.push('<td>'+esc(val)+'</td>');
           }
-        }
+        });
         body+='<tr>' + cells.join("") + '<td class="del-c"><button class="rowdel" data-id="'+esc(rw.id)+'">✕</button></td></tr>';
       });
       body+="</tbody>";
