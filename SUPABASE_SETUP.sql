@@ -53,11 +53,14 @@ create policy "videos_read_public"
 
 -- 3) Listat e personalizuara (të përbashkëta, online)
 create table if not exists public.lists (
-  id         uuid primary key default gen_random_uuid(),
-  created_at timestamptz not null default now(),
-  name       text not null,
-  columns    jsonb not null default '[]'::jsonb
+  id            uuid primary key default gen_random_uuid(),
+  created_at    timestamptz not null default now(),
+  name          text not null,
+  columns       jsonb not null default '[]'::jsonb,
+  photo_enabled boolean not null default false
 );
+alter table public.lists add column if not exists photo_enabled boolean not null default false;
+
 create table if not exists public.list_rows (
   id         uuid primary key default gen_random_uuid(),
   created_at timestamptz not null default now(),
