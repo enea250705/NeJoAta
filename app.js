@@ -550,8 +550,8 @@
     $("reportsView").hidden=false; $("repForm").hidden=true; $("chanPanel").hidden=true;
     var w=$("repWarn");
     if(w){ w.innerHTML = SERVER
-      ? '<b>Kujdes.</b> Këto video ngarkohen në një feed të përbashkët që e sheh kushdo — dhe rrinë në një server që mund të merret a mbyllet. Mos trego fytyra protestuesish; dhuna tregohet, njerëzit mbrohen.'
-      : '<b>Kujdes.</b> Këto video ruhen vetëm në këtë telefon, edhe pa internet. <b>Eksportoji sa më shpejt</b> te një vend i sigurt dhe shmang fytyrat e protestuesve kur mundesh.'; }
+      ? '<b>Kujdes.</b> Këto video ngarkohen në një feed të përbashkët që e sheh kushdo — dhe ruhen në një galeri web të publikuar. Mos trego fytyra protestuesish; dhuna tregohet, njerëzit mbrohen.'
+      : '<b>Kujdes.</b> Këto video ruhen në një galeri web të publikuar dhe mund të shihen nga kushdo. Mos trego fytyra protestuesish; dhuna tregohet, njerëzit mbrohen.'; }
     renderReports();
   });
   $("reportsClose").addEventListener("click", function(){ $("reportsView").hidden=true; revokeRepURLs(); });
@@ -617,6 +617,44 @@
   function listDel(id){
     if(SERVER) return SB.from("lists").delete().eq("id",id).then(function(r){ if(r.error)throw r.error; });
     lsSet(lsGet().filter(function(x){return x.id!==id;})); return Promise.resolve();
+  }
+  function migrateLocalListsToServer(){
+    if(!SERVER) return Promise.resolve();
+    try{
+      var done = localStorage.getItem("nja_lists_migrated_to_server");
+      if(done === "1") return Promise.resolve();
+    }catch(e){}
+    var localLists = lsGet();
+    if(!localLists.length) {
+      try{ localStorage.setItem("nja_lists_migrated_to_server","1"); }catch(e){}
+      return Promise.resolve();
+    }
+    var seq = Promise.resolve();
+    localLists.forEach(function(list){
+      seq = seq.then(function(){
+        var name = String(list.name||"Listë").trim();
+        var cols = Array.isArray(list.columns) ? list.columns.map(function(v){ return String(v||"").trim(); }).filter(Boolean) : [];
+        if(!name || !cols.length) return Promise.resolve();
+        var photoIndex = Number(list.photo_index); if(!isFinite(photoIndex) || photoIndex < 0 || photoIndex >= cols.length) photoIndex = null;
+        return SB.from("lists").insert({name:name, columns:cols, photo_index: photoIndex}).select().then(function(r){
+          if(r && r.error) throw r.error;
+          var created = (r && r.data && r.data[0]) ? r.data[0] : null; if(!created || !created.id) return;
+          var rows = Array.isArray(list.rows) ? list.rows : [];
+          if(!rows.length) return;
+          return Promise.all(rows.map(function(row){
+            var data = Array.isArray(row) ? row.slice(0, cols.length) : [];
+            while(data.length < cols.length) data.push("");
+            return SB.from("list_rows").insert({list_id: created.id, data:data});
+          }));
+        });
+      });
+    });
+    return seq.then(function(){
+      try{ localStorage.setItem("nja_lists_migrated_to_server","1"); }catch(e){}
+      try{ localStorage.removeItem(LKEY); }catch(e){}
+    }).catch(function(){
+      try{ localStorage.setItem("nja_lists_migrated_to_server","1"); }catch(e){}
+    });
   }
 
   // Realtime (vetëm në modalitet server)
@@ -687,7 +725,6 @@
         var photoInput=document.createElement("input");
         photoInput.type="file";
         photoInput.accept="image/*";
-        photoInput.capture="environment";
         photoInput.setAttribute("data-photo-field","1");
         photoInput.setAttribute("data-ci",String(i));
         box.appendChild(photoInput);
@@ -787,8 +824,7 @@
 
   if("serviceWorker" in navigator){ window.addEventListener("load", function(){ navigator.serviceWorker.register("./sw.js").catch(function(){}); }); }
   updateReportsCount();
-  renderMyLists();
-  subscribeLists();
+  migrateLocalListsToServer().then(function(){ renderMyLists(); subscribeLists(); }).catch(function(){ renderMyLists(); subscribeLists(); });
 
   /* ---------- nxit instalimin si PWA (vetëm kur hapet nga shfletuesi) ---------- */
   (function installPrompt(){
