@@ -618,6 +618,27 @@
     lsSet(lsGet().filter(function(x){return x.id!==id;})); return Promise.resolve();
   }
 
+  // Realtime (vetëm në modalitet server)
+  var rtRows=null, rtLists=null;
+  function subscribeRows(listId){
+    if(!SERVER)return;
+    unsubscribeRows();
+    try{
+      rtRows=SB.channel("rows-"+listId)
+        .on("postgres_changes",{event:"*",schema:"public",table:"list_rows",filter:"list_id=eq."+listId}, function(){ if(curList&&curList.id===listId) reloadRows(curList); })
+        .subscribe();
+    }catch(e){}
+  }
+  function unsubscribeRows(){ if(rtRows){ try{ SB.removeChannel(rtRows); }catch(e){} rtRows=null; } }
+  function subscribeLists(){
+    if(!SERVER)return;
+    try{
+      rtLists=SB.channel("lists-all")
+        .on("postgres_changes",{event:"*",schema:"public",table:"lists"}, function(){ renderMyLists(); })
+        .subscribe();
+    }catch(e){}
+  }
+
   function renderMyLists(){
     var box=$("myLists"); if(!box)return; box.innerHTML="";
     listsAll().then(function(lists){
@@ -645,11 +666,12 @@
 
   // Pamja e listës
   function openListView(id){
+    unsubscribeRows();
     curList=null; $("listView").hidden=false; $("lvTitle").textContent="Po ngarkohet…"; $("lvAddRow").innerHTML=""; $("lvTable").innerHTML=""; lDelArmed=false; $("lvDelList").textContent="Fshi këtë listë";
     listGet(id).then(function(l){
       if(!l){ $("lvTitle").textContent="Nuk u gjet"; return; }
       curList=l; $("lvTitle").textContent=l.name||"Listë";
-      renderAddRow(l); reloadRows(l);
+      renderAddRow(l); reloadRows(l); subscribeRows(l.id);
     }).catch(function(){ $("lvTitle").textContent="S'u hap dot"; });
   }
   function renderAddRow(l){
@@ -698,8 +720,8 @@
     listCreate(name, cols).then(function(l){ $("lbCreate").disabled=false; $("lbCreate").textContent="Krijo listën"; $("listBuilder").hidden=true; renderMyLists(); openListView(l.id); })
       .catch(function(){ $("lbCreate").disabled=false; $("lbCreate").textContent="Krijo listën"; $("lbName").insertAdjacentHTML("afterend",''); });
   });
-  $("lvClose").addEventListener("click", function(){ $("listView").hidden=true; });
-  $("lvBack").addEventListener("click", function(){ $("listView").hidden=true; });
+  $("lvClose").addEventListener("click", function(){ unsubscribeRows(); $("listView").hidden=true; });
+  $("lvBack").addEventListener("click", function(){ unsubscribeRows(); $("listView").hidden=true; });
   $("lvDelList").addEventListener("click", function(){
     if(!curList)return;
     if(!lDelArmed){ lDelArmed=true; this.textContent="Shtyp sërish për të fshirë listën"; return; }
@@ -709,6 +731,7 @@
   if("serviceWorker" in navigator){ window.addEventListener("load", function(){ navigator.serviceWorker.register("./sw.js").catch(function(){}); }); }
   updateReportsCount();
   renderMyLists();
+  subscribeLists();
 
   /* ---------- nxit instalimin si PWA (vetëm kur hapet nga shfletuesi) ---------- */
   (function installPrompt(){

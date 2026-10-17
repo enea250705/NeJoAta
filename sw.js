@@ -1,7 +1,7 @@
 /* NeJoAta service worker — bën që app-i të hapet pa internet.
    Strategji: NETWORK-FIRST për skedarët e app-it (gjithmonë merr versionin e ri kur ka internet),
    me kthim te cache-i kur s'ka internet (offline punon njësoj). Gjithçka lokale, pa thirrje jashtë. */
-var CACHE = "nejoata-v9";
+var CACHE = "nejoata-v10";
 var ASSETS = [
   "./","./index.html","./app.js","./manifest.webmanifest",
   "./lib/pako.min.js","./lib/jsQR.js","./lib/qrcode.min.js","./lib/supabase.js","./config.js",

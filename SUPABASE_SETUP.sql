@@ -84,6 +84,12 @@ create policy "rows_delete_anon" on public.list_rows for delete to anon, authent
 -- Shënim: fshirja është e hapur për këdo (pa llogari). Nëse do ta mbyllësh,
 -- hiq politikat "..._delete_anon" dhe fshirjen bëje vetëm nga dashboard-i.
 
+-- 4) Realtime — që shtimi i emrave të përditësohet te të gjithë në çast
+alter publication supabase_realtime add table public.list_rows;
+alter publication supabase_realtime add table public.lists;
+alter publication supabase_realtime add table public.reports;
+-- (Nëse një tabelë është shtuar tashmë, Supabase jep gabim të padëmshëm — shpërfille.)
+
 -- ============================================================
 -- SIGURIA — lexoje:
 -- • anon key vendoset në app (normale, mbrohet nga RLS). service_role NUK vihet kurrë.
