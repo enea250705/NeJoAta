@@ -321,5 +321,37 @@
 
   if("serviceWorker" in navigator){ window.addEventListener("load", function(){ navigator.serviceWorker.register("./sw.js").catch(function(){}); }); }
 
+  /* ---------- nxit instalimin si PWA (vetëm kur hapet nga shfletuesi) ---------- */
+  (function installPrompt(){
+    var banner=$("installBanner"), btn=$("installBtn"), iosSteps=$("installIos"), txt=$("installText"), dismiss=$("installDismiss");
+    if(!banner) return;
+    var deferred=null;
+    function isStandalone(){
+      return (window.matchMedia && window.matchMedia("(display-mode: standalone)").matches) || window.navigator.standalone === true;
+    }
+    function isIOS(){ return /iphone|ipad|ipod/i.test(navigator.userAgent) || (navigator.platform==="MacIntel" && navigator.maxTouchPoints>1); }
+    var dismissed=false; try{ dismissed = localStorage.getItem("nja_install_dismiss")==="1"; }catch(e){}
+
+    if(isStandalone()){ banner.hidden=true; return; } // tashmë i instaluar → s'ka nevojë
+
+    if(!dismissed){
+      banner.hidden=false;
+      if(isIOS()){ iosSteps.hidden=false; } // iPhone: s'ka buton automatik, trego hapat
+    }
+
+    window.addEventListener("beforeinstallprompt", function(e){
+      e.preventDefault(); deferred=e;
+      banner.hidden=false; btn.hidden=false; iosSteps.hidden=true;
+      txt.textContent="Tani po e hap nga shfletuesi. Shtype butonin më poshtë për ta instaluar — pastaj punon pa internet.";
+    });
+    btn.addEventListener("click", function(){
+      if(!deferred) return;
+      deferred.prompt();
+      deferred.userChoice.then(function(c){ if(c&&c.outcome==="accepted"){ banner.hidden=true; } deferred=null; });
+    });
+    dismiss.addEventListener("click", function(){ banner.hidden=true; try{ localStorage.setItem("nja_install_dismiss","1"); }catch(e){} });
+    window.addEventListener("appinstalled", function(){ banner.hidden=true; });
+  })();
+
   openGate();
 })();

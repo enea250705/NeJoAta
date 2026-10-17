@@ -120,6 +120,18 @@
   .foot{font-size:11px;color:var(--fg-faint);text-align:center;margin-top:8px;line-height:1.55;}
   a{color:var(--accent);}
 
+  .install{background:var(--accent-soft);border:1px solid color-mix(in srgb,var(--accent) 38%,var(--line));border-radius:var(--radius);padding:14px 15px;margin-bottom:16px;}
+  .install .ihead{display:flex;align-items:center;gap:9px;margin-bottom:7px;}
+  .install .ihead svg{width:19px;height:19px;flex:none;color:var(--accent);}
+  .install .ihead b{font-size:14px;font-weight:650;}
+  .install p{margin:0;font-size:12.5px;color:var(--fg-dim);line-height:1.55;}
+  .install .steps-ios{margin:8px 0 0;padding-left:18px;font-size:12.5px;color:var(--fg-dim);line-height:1.6;}
+  .install .steps-ios li{margin-bottom:2px;}
+  .install .iact{display:flex;gap:8px;margin-top:11px;}
+  .install .ibtn{flex:1;background:var(--accent);color:var(--accent-fg);border:none;border-radius:var(--radius-sm);padding:10px;font:inherit;font-weight:650;font-size:14px;cursor:pointer;}
+  .install .idismiss{background:transparent;border:1px solid var(--line);color:var(--fg-dim);border-radius:var(--radius-sm);padding:10px 14px;font:inherit;font-size:13px;cursor:pointer;}
+  .install kbd{font-family:var(--mono);font-size:.9em;background:var(--surface);border:1px solid var(--line);border-radius:4px;padding:0 5px;}
+
   .choice{width:100%;text-align:left;background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:16px 17px;margin-bottom:12px;cursor:pointer;display:flex;gap:13px;align-items:flex-start;box-shadow:var(--shadow);transition:border-color .15s,transform .1s;}
   .choice:hover{border-color:var(--accent);}
   .choice:active{transform:scale(.995);}
@@ -218,6 +230,22 @@
 <!-- ===== DERA ===== -->
 <div class="overlay" id="gate">
   <div class="panel">
+    <div class="install" id="installBanner" hidden>
+      <div class="ihead">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12m0 0 4-4m-4 4-4-4"/><path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/></svg>
+        <b>Instaloje për ta përdorur pa internet</b>
+      </div>
+      <p id="installText">Tani po e hap nga shfletuesi. Që të punojë <b>pa internet</b> (në protestë, mbi hotspot), shtoje në ekranin kryesor. Instalimin bëje tani, një herë, me internet.</p>
+      <ol class="steps-ios" id="installIos" hidden>
+        <li>Shtyp <b>Share</b> (ikona me shigjetën lart) te shiriti i Safari-t.</li>
+        <li>Zgjidh <b>“Add to Home Screen” / “Shto te Ekrani Kryesor”</b>.</li>
+        <li>Hape NeJoAta nga ikona e re — tani punon pa internet.</li>
+      </ol>
+      <div class="iact">
+        <button class="ibtn" id="installBtn" hidden>Instalo tani</button>
+        <button class="idismiss" id="installDismiss">Më vonë</button>
+      </div>
+    </div>
     <div class="hero-lock">
       <svg class="mark" viewBox="0 0 32 32" fill="none" aria-hidden="true">
         <circle cx="16" cy="16" r="3.4" fill="var(--accent)"/>
