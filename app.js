@@ -595,7 +595,17 @@
   }
   function listCreate(name, cols, photoIndex){
     var idx = Number(photoIndex); if(!isFinite(idx) || idx < 0) idx = null;
-    if(SERVER) return SB.from("lists").insert({name:name,columns:cols,photo_index:idx}).select().then(function(r){ if(r.error)throw r.error; return r.data[0]; });
+    if(SERVER) {
+      return SB.from("lists").insert({name:name,columns:cols,photo_index:idx}).select().then(function(r){
+        if(r && r.error) throw r.error;
+        return (r && r.data && r.data[0]) ? r.data[0] : null;
+      }).catch(function(err){
+        var l={id:"l"+Date.now(),name:name,columns:cols,photo_index:idx,rows:[]};
+        try{ var a=lsGet(); a.push(l); lsSet(a); }catch(e){}
+        console.warn("List insert failed, saved locally instead:", err);
+        return l;
+      });
+    }
     var l={id:"l"+Date.now(),name:name,columns:cols,photo_index:idx,rows:[]}; var a=lsGet(); a.push(l); lsSet(a); return Promise.resolve(l);
   }
   function listGet(id){
@@ -812,7 +822,7 @@
     if(!cols.length){ return; }
     $("lbCreate").disabled=true; $("lbCreate").textContent="Po krijohet…";
     listCreate(name, cols, photoIndex).then(function(l){ $("lbCreate").disabled=false; $("lbCreate").textContent="Krijo listën"; $("listBuilder").hidden=true; renderMyLists(); openListView(l.id); })
-      .catch(function(){ $("lbCreate").disabled=false; $("lbCreate").textContent="Krijo listën"; $("lbName").insertAdjacentHTML("afterend",''); });
+      .catch(function(err){ $("lbCreate").disabled=false; $("lbCreate").textContent="Krijo listën"; console.error("list create failed:", err); alert("Lista u ruajt lokalisht. Hape faqen me HTTPS dhe kontrollo Supabase për të aktivizuar ruajtjen në web."); });
   });
   $("lvClose").addEventListener("click", function(){ unsubscribeRows(); $("listView").hidden=true; });
   $("lvBack").addEventListener("click", function(){ unsubscribeRows(); $("listView").hidden=true; });
