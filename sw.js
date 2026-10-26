@@ -1,14 +1,15 @@
 /* NeJoAta service worker — bën që app-i të hapet pa internet.
    Strategji: NETWORK-FIRST për skedarët e app-it (gjithmonë merr versionin e ri kur ka internet),
    me kthim te cache-i kur s'ka internet (offline punon njësoj). Gjithçka lokale, pa thirrje jashtë. */
-var CACHE = "nejoata-v10";
+var CACHE = "nejoata-v11";
 var ASSETS = [
   "./","./index.html","./app.js","./manifest.webmanifest",
   "./lib/pako.min.js","./lib/jsQR.js","./lib/qrcode.min.js","./lib/supabase.js","./config.js",
   "./lib/fonts/inter-latin-400-normal.woff2","./lib/fonts/inter-latin-500-normal.woff2",
   "./lib/fonts/inter-latin-600-normal.woff2","./lib/fonts/inter-latin-700-normal.woff2",
   "./lib/fonts/fraunces-latin-500-normal.woff2","./lib/fonts/fraunces-latin-600-normal.woff2",
-  "./icons/icon-192.png","./icons/icon-512.png","./icons/maskable-512.png","./icons/apple-touch-icon.png"
+  "./icons/icon-192.png","./icons/icon-512.png","./icons/maskable-512.png","./icons/apple-touch-icon.png",
+  "./icons/favicon.svg","./icons/favicon.ico"
 ];
 
 self.addEventListener("install", function (e) {
