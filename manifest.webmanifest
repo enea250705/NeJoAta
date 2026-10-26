@@ -7,9 +7,14 @@
   "scope": "./",
   "display": "standalone",
   "orientation": "portrait",
-  "background_color": "#101309",
-  "theme_color": "#2c6a4a",
+  "background_color": "#171717",
+  "theme_color": "#171717",
   "icons": [
+    {
+      "src": "icons/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml"
+    },
     {
       "src": "icons/icon-192.png",
       "sizes": "192x192",
